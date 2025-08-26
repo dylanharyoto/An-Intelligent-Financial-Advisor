@@ -1,103 +1,221 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { Line, Scatter } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+// Mock data for HSI stocks (replace with API calls in production)
+const mockStocks = [
+  { symbol: '0001.HK', name: 'CK Hutchison', price: 50.2 },
+  { symbol: '0002.HK', name: 'CLP Holdings', price: 65.3 },
+  { symbol: '0003.HK', name: 'Hong Kong and China Gas', price: 7.1 },
+  // Add more mock HSI constituents as needed
+];
+
+const mockEfficientFrontierData = {
+  labels: ['Portfolio 1', 'Portfolio 2', 'Portfolio 3', 'Portfolio 4', 'Portfolio 5'],
+  datasets: [
+    {
+      label: 'Efficient Frontier',
+      data: [
+        { x: 5, y: 8 },
+        { x: 7, y: 10 },
+        { x: 10, y: 12 },
+        { x: 12, y: 13 },
+        { x: 15, y: 14 },
+      ],
+      borderColor: 'rgb(75, 192, 192)',
+      backgroundColor: 'rgba(75, 192, 192, 0.5)',
+    },
+  ],
+};
+
+const mockGrowthData = {
+  labels: ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'],
+  datasets: [
+    {
+      label: 'Projected Growth',
+      data: [100, 110, 125, 140, 160],
+      borderColor: 'rgb(53, 162, 235)',
+      backgroundColor: 'rgba(53, 162, 235, 0.5)',
+    },
+  ],
+};
+
+const mockScenarios = ['Base', 'Optimistic', 'Pessimistic', 'Sentiment-Driven'];
+
+export default function Dashboard() {
+  const [portfolio, setPortfolio] = useState<{ symbol: string; weight: number }[]>([]);
+  const [riskTolerance, setRiskTolerance] = useState(5); // 1-10 scale
+  const [horizon, setHorizon] = useState(5); // years
+  const [assumptions, setAssumptions] = useState('');
+  const [scenario, setScenario] = useState(mockScenarios[0]);
+
+  const handleAddStock = (symbol: string, weight: number) => {
+    setPortfolio([...portfolio, { symbol, weight }]);
+  };
+
+  const handleOptimize = () => {
+    // Mock optimization - in production, call backend API
+    console.log('Optimizing portfolio:', { portfolio, riskTolerance, horizon, assumptions, scenario });
+    // Update charts with real data from backend
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex flex-col h-full w-full bg-gray-100">
+      {/* Header */}
+      <header className="bg-blue-600 text-white p-4 text-center">
+        <h1 className="text-2xl font-bold">Intelligent AI-Powered Financial Advisor</h1>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      {/* Main Content */}
+      <main className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar: Inputs */}
+        <aside className="w-1/4 p-4 bg-white border-r border-gray-200 overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4">User Inputs</h2>
+
+          {/* Portfolio Weights */}
+          <section className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Portfolio Stocks</h3>
+            <div className="space-y-2">
+              {mockStocks.map((stock) => (
+                <div key={stock.symbol} className="flex items-center">
+                  <span className="flex-1">{stock.name} ({stock.symbol})</span>
+                  <input
+                    type="number"
+                    placeholder="Weight %"
+                    className="w-24 p-1 border border-gray-300 rounded"
+                    onChange={(e) => handleAddStock(stock.symbol, parseFloat(e.target.value))}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Risk Tolerance */}
+          <section className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Risk Tolerance (1-10)</h3>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={riskTolerance}
+              onChange={(e) => setRiskTolerance(parseInt(e.target.value))}
+              className="w-full"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <p className="text-center">{riskTolerance}</p>
+          </section>
+
+          {/* Investment Horizon */}
+          <section className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Investment Horizon (Years)</h3>
+            <input
+              type="number"
+              value={horizon}
+              onChange={(e) => setHorizon(parseInt(e.target.value))}
+              className="w-full p-2 border border-gray-300 rounded"
+            />
+          </section>
+
+          {/* Assumptions */}
+          <section className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Assumptions</h3>
+            <textarea
+              value={assumptions}
+              onChange={(e) => setAssumptions(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded"
+              rows={4}
+            />
+          </section>
+
+          {/* Scenario Toggles */}
+          <section className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Scenario</h3>
+            <select
+              value={scenario}
+              onChange={(e) => setScenario(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded"
+            >
+              {mockScenarios.map((sc) => (
+                <option key={sc} value={sc}>
+                  {sc}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          {/* Optimize Button */}
+          <button
+            onClick={handleOptimize}
+            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
           >
-            Read our docs
-          </a>
-        </div>
+            Optimize Portfolio
+          </button>
+        </aside>
+
+        {/* Right: Visualizations */}
+        <section className="flex-1 p-4 overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4">Visualizations</h2>
+
+          {/* Efficient Frontier */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium mb-2">Efficient Frontier</h3>
+            <div className="h-64">
+              <Scatter
+                data={mockEfficientFrontierData}
+                options={{
+                  scales: {
+                    x: { title: { display: true, text: 'Risk (Std Dev)' } },
+                    y: { title: { display: true, text: 'Return (%)' } },
+                  },
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Projected Portfolio Growth */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium mb-2">Projected Portfolio Growth</h3>
+            <div className="h-64">
+              <Line
+                data={mockGrowthData}
+                options={{
+                  scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Value ($)' } },
+                  },
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Risk-Return Trade-offs (Placeholder) */}
+          <div>
+            <h3 className="text-lg font-medium mb-2">Risk-Return Trade-offs</h3>
+            <p className="text-gray-600">Additional visualizations or metrics can be added here (e.g., Sharpe Ratio, etc.).</p>
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

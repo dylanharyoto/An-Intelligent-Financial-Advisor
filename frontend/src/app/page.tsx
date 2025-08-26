@@ -221,161 +221,159 @@ export default function Dashboard() {
 
             {/* Portfolio Stocks */}
             <section className="mb-6">
-              <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
-                Portfolio Stocks
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setShowAddForm((s) => !s)}
-                    className="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                  >
-                    {showAddForm ? "Hide" : "Add New"}
-                  </button>
-                </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Portfolio Stocks
+                </h3>
+                <button
+                  onClick={() => setShowAddForm((s) => !s)}
+                  className="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  {showAddForm ? "Hide" : "Add New"}
+                </button>
+              </div>
 
-                {/* Collapsible Add Form */}
-                {showAddForm && (
-                  <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 mt-2 transition-all duration-200 ease-out">
-                    <div className="space-y-2">
-                      <div>
-                        <input
-                          type="text"
-                          placeholder="Symbol (type or pick)"
-                          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                          value={symbolQuery || newStock.symbol}
-                          onChange={(e) => {
-                            setSymbolQuery(e.target.value);
+              {/* Collapsible Add Form */}
+              {showAddForm && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 mt-2 transition-all duration-200 ease-out">
+                  <div className="space-y-2">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Symbol (type or pick)"
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
+                        value={symbolQuery || newStock.symbol}
+                        onChange={(e) => {
+                          setSymbolQuery(e.target.value);
+                          setNewStock({
+                            ...newStock,
+                            symbol: e.target.value.toUpperCase(),
+                          });
+                        }}
+                      />
+                      {/* typeahead list */}
+                      {symbolQuery && filteredSymbols.length > 0 && (
+                        <div className="border border-gray-200 bg-white rounded mt-1 max-h-40 overflow-y-auto">
+                          {filteredSymbols.map((s) => (
+                            <div
+                              key={s}
+                              className="px-2 py-1 hover:bg-gray-100 cursor-pointer text-sm"
+                              onClick={() => {
+                                setNewStock({ ...newStock, symbol: s });
+                                setSymbolQuery(s);
+                                setFilteredSymbols([]);
+                              }}
+                            >
+                              {s}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {errors.symbol && (
+                        <div className="text-xs text-red-600 mt-1">
+                          {errors.symbol}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        placeholder="Quantity"
+                        className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
+                        value={newStock.quantity || ""}
+                        onChange={(e) =>
+                          setNewStock({
+                            ...newStock,
+                            quantity: parseInt(e.target.value) || 0,
+                          })
+                        }
+                      />
+                      {errors.quantity && (
+                        <div className="text-xs text-red-600 mt-1">
+                          {errors.quantity}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        className="flex-1 p-2 border border-gray-300 rounded"
+                        value={newStock.price || ""}
+                        onChange={(e) =>
+                          setNewStock({
+                            ...newStock,
+                            price: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                      {errors.price && (
+                        <div className="text-xs text-red-600 mt-1">
+                          {errors.price}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          // validation
+                          const e: typeof errors = {};
+                          if (!newStock.symbol)
+                            e.symbol = "Symbol is required";
+                          if (newStock.price <= 0)
+                            e.price = "Price must be > 0";
+                          if (newStock.quantity <= 0)
+                            e.quantity = "Quantity must be > 0";
+                          setErrors(e);
+                          if (Object.keys(e).length === 0) {
+                            setStocks([...stocks, newStock]);
                             setNewStock({
-                              ...newStock,
-                              symbol: e.target.value.toUpperCase(),
+                              symbol: "",
+                              price: 0,
+                              quantity: 0,
                             });
-                          }}
-                        />
-                        {/* typeahead list */}
-                        {symbolQuery && filteredSymbols.length > 0 && (
-                          <div className="border border-gray-200 bg-white rounded mt-1 max-h-40 overflow-y-auto">
-                            {filteredSymbols.map((s) => (
-                              <div
-                                key={s}
-                                className="px-2 py-1 hover:bg-gray-100 cursor-pointer text-sm"
-                                onClick={() => {
-                                  setNewStock({ ...newStock, symbol: s });
-                                  setSymbolQuery(s);
-                                  setFilteredSymbols([]);
-                                }}
-                              >
-                                {s}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {errors.symbol && (
-                          <div className="text-xs text-red-600 mt-1">
-                            {errors.symbol}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <input
-                          type="number"
-                          placeholder="Quantity"
-                          className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-                          value={newStock.quantity || ""}
-                          onChange={(e) =>
-                            setNewStock({
-                              ...newStock,
-                              quantity: parseInt(e.target.value) || 0,
-                            })
+                            setSymbolQuery("");
+                            setShowAddForm(false);
                           }
-                        />
-                        {errors.quantity && (
-                          <div className="text-xs text-red-600 mt-1">
-                            {errors.quantity}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          placeholder="Price"
-                          className="flex-1 p-2 border border-gray-300 rounded"
-                          value={newStock.price || ""}
-                          onChange={(e) =>
-                            setNewStock({
-                              ...newStock,
-                              price: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                        />
-                        {errors.price && (
-                          <div className="text-xs text-red-600 mt-1">
-                            {errors.price}
-                          </div>
-                        )}
-                        <button
-                          onClick={() => {
-                            // validation
-                            const e: typeof errors = {};
-                            if (!newStock.symbol)
-                              e.symbol = "Symbol is required";
-                            if (newStock.price <= 0)
-                              e.price = "Price must be > 0";
-                            if (newStock.quantity <= 0)
-                              e.quantity = "Quantity must be > 0";
-                            setErrors(e);
-                            if (Object.keys(e).length === 0) {
-                              setStocks([...stocks, newStock]);
-                              setNewStock({
-                                symbol: "",
-                                price: 0,
-                                quantity: 0,
-                              });
-                              setSymbolQuery("");
-                              setShowAddForm(false);
-                            }
-                          }}
-                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                          Add
-                        </button>
-                      </div>
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        Add
+                      </button>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Scrollable Stock List */}
-                <div className="overflow-y-auto max-h-64 mt-2 space-y-2 pr-2">
-                  {stocks.map((stock, index) => (
-                    <div
-                      key={`${stock.symbol}-${index}`}
-                      className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {stock.symbol}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
-                          </div>
+              {/* Scrollable Stock List */}
+              <div className="overflow-y-auto max-h-64 mt-2 space-y-2 pr-2">
+                {stocks.map((stock, index) => (
+                  <div
+                    key={`${stock.symbol}-${index}`}
+                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {stock.symbol}
                         </div>
-                        <button
-                          onClick={() => setConfirmDeleteIndex(index)}
-                          className="p-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                          aria-label={`Remove ${stock.symbol}`}
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setConfirmDeleteIndex(index)}
+                        className="p-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                        aria-label={`Remove ${stock.symbol}`}
+                      >
+                        {/* simple X icon */}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
                         >
-                          {/* simple X icon */}
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                              clipRule="evenodd"
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
                             />
                           </svg>
                         </button>
@@ -428,8 +426,7 @@ export default function Dashboard() {
                         />
                       </div>
                     </div>
-                  ))}
-                </div>
+                ))}
               </div>
             </section>
 

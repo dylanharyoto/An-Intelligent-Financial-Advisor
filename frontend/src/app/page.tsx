@@ -149,6 +149,9 @@ export default function Dashboard() {
     { symbol: string; weight: number }[]
   >([]);
   const [wsConnected, setWsConnected] = useState(false);
+  const [expandedStocks, setExpandedStocks] = useState<{
+    [key: number]: boolean;
+  }>({});
   const [riskTolerance, setRiskTolerance] = useState(5); // 1-10 scale
   const [horizon, setHorizon] = useState(5); // years
   const [customHorizonValue, setCustomHorizonValue] = useState<number>(1);
@@ -205,18 +208,20 @@ export default function Dashboard() {
     const client = getStockWebSocketClient();
 
     const handleMessage = (data: StockData) => {
+      console.log("Received stock data:", data);
       setStocks((prevStocks) =>
         prevStocks.map((stock) => {
           if (stock.symbol === data.symbol) {
-            const previousPrice = stock.livePrice || stock.price;
-            const currentPrice = data.price;
-            const percentageChange =
-              ((currentPrice - previousPrice) / previousPrice) * 100;
+            console.log(
+              `Updating ${data.symbol}: ${stock.livePrice || stock.price} -> ${
+                data.price
+              } (${data.percentageChange.toFixed(2)}%)`
+            );
 
             return {
               ...stock,
-              livePrice: currentPrice,
-              percentageChange: percentageChange,
+              livePrice: data.price,
+              percentageChange: data.percentageChange, // Use backend's calculation
             };
           }
           return stock;
@@ -556,30 +561,36 @@ export default function Dashboard() {
               {/* Enhanced Scrollable Stock List */}
               <div className="relative">
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300">
-                  {stocks.map((stock, index) => (
-                    <div
-                      key={`${stock.symbol}-${index}`}
-                      className="p-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <div className="font-medium text-white">
-                                {stock.symbol}
-                              </div>
-                              <div className="text-xs text-gray-300 truncate">
-                                {COMPANY_NAMES[stock.symbol] ??
-                                  "Unknown Company"}
-                              </div>
+                  {stocks.map((stock, index) => {
+                    const isExpanded = expandedStocks[index] || false;
+
+                    const toggleExpansion = () => {
+                      setExpandedStocks((prev) => ({
+                        ...prev,
+                        [index]: !prev[index],
+                      }));
+                    };
+
+                    return (
+                      <div
+                        key={`${stock.symbol}-${index}`}
+                        className="bg-gray-700 border border-gray-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                      >
+                        {/* Compact Stock Display */}
+                        <div className="p-3 flex items-center justify-between">
+                          {/* Left Side - Stock Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-white text-sm">
+                              {stock.symbol}
+                            </div>
+                            <div className="text-xs text-gray-300 truncate">
+                              {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
                             </div>
                           </div>
-                        </div>
 
-                        {/* Price and Change Section - Right Side */}
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <div className="font-semibold text-white">
+                          {/* Center - Price and Change */}
+                          <div className="text-right mr-3">
+                            <div className="font-semibold text-white text-sm">
                               $
                               {stock.livePrice
                                 ? stock.livePrice.toFixed(2)
@@ -600,77 +611,139 @@ export default function Dashboard() {
                               </div>
                             )}
                           </div>
-                          <button
-                            onClick={() => setConfirmDeleteIndex(index)}
-                            className="p-1 text-red-600 hover:text-red-800"
-                            aria-label={`Remove ${stock.symbol}`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
+
+                          {/* Right Side - Controls */}
+                          <div className="flex items-center gap-1">
+                            {/* Expand/Collapse Toggle */}
+                            <button
+                              onClick={toggleExpansion}
+                              className="p-1.5 text-gray-400 hover:text-white transition-colors rounded"
+                              aria-label={`${
+                                isExpanded ? "Hide" : "Show"
+                              } input fields`}
                             >
-                              <path
-                                fillRule="evenodd"
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                              />
-                            </svg>
-                          </button>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className={`h-4 w-4 transition-transform duration-200 ${
+                                  isExpanded ? "rotate-180" : ""
+                                }`}
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => setConfirmDeleteIndex(index)}
+                              className="p-1.5 text-red-600 hover:text-red-400 transition-colors rounded"
+                              aria-label={`Remove ${stock.symbol}`}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Collapsible Input Fields */}
+                        {isExpanded && (
+                          <div className="px-3 pb-3 border-t border-gray-600/50">
+                            <div className="pt-3 grid grid-cols-3 gap-3">
+                              {/* Entry Price Input */}
+                              <div className="space-y-1">
+                                <label className="block text-xs font-medium text-gray-400">
+                                  Entry Price ($)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                  value={stock.price}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const updated = [...stocks];
+                                    updated[index] = {
+                                      ...updated[index],
+                                      price: val,
+                                    };
+                                    setStocks(updated);
+                                  }}
+                                />
+                              </div>
+
+                              {/* Quantity Input */}
+                              <div className="space-y-1">
+                                <label className="block text-xs font-medium text-gray-400">
+                                  Quantity
+                                </label>
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                  value={stock.quantity}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const updated = [...stocks];
+                                    updated[index] = {
+                                      ...updated[index],
+                                      quantity: val,
+                                    };
+                                    setStocks(updated);
+                                  }}
+                                />
+                              </div>
+
+                              {/* Weight Input */}
+                              <div className="space-y-1">
+                                <label className="block text-xs font-medium text-gray-400">
+                                  Weight (%)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  placeholder="0.0"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                  value={
+                                    portfolio.find(
+                                      (p) => p.symbol === stock.symbol
+                                    )?.weight || ""
+                                  }
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const newPortfolio = portfolio.filter(
+                                      (p) => p.symbol !== stock.symbol
+                                    );
+                                    if (val > 0) {
+                                      newPortfolio.push({
+                                        symbol: stock.symbol,
+                                        weight: val,
+                                      });
+                                    }
+                                    setPortfolio(newPortfolio);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {/* labels for inputs */}
-                      <div className="flex items-center text-xs text-gray-300 mt-2 gap-2">
-                        <div className="w-28 text-center">Price</div>
-                        <div className="w-20 text-center">Quantity</div>
-                        <div className="w-24 text-center">Weight %</div>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Price"
-                          className="w-28 p-1 border border-gray-600 rounded text-white bg-gray-600 placeholder-gray-400"
-                          value={stock.price}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const updated = [...stocks];
-                            updated[index] = {
-                              ...updated[index],
-                              price: val,
-                            };
-                            setStocks(updated);
-                          }}
-                        />
-                        <input
-                          type="number"
-                          placeholder="Qty"
-                          className="w-20 p-1 border border-gray-600 rounded text-white bg-gray-600 placeholder-gray-400"
-                          value={stock.quantity}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0;
-                            const updated = [...stocks];
-                            updated[index] = {
-                              ...updated[index],
-                              quantity: val,
-                            };
-                            setStocks(updated);
-                          }}
-                        />
-                        <input
-                          type="number"
-                          placeholder="Weight %"
-                          className="w-24 p-1 border border-gray-600 rounded text-white bg-gray-600 placeholder-gray-400"
-                          onChange={(e) =>
-                            handleAddStock(
-                              stock.symbol,
-                              parseFloat(e.target.value)
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

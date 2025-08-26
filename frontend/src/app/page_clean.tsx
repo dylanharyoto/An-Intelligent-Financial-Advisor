@@ -170,37 +170,7 @@ export default function Dashboard() {
     null
   );
 
-  // Stock data management - Initialize connection once
-  useEffect(() => {
-    const client = getStockWebSocketClient();
-
-    const initializeConnection = async () => {
-      try {
-        await client.connect();
-        setWsConnected(true);
-        console.log("WebSocket connected successfully");
-      } catch (error) {
-        console.error("Failed to connect to WebSocket:", error);
-        setWsConnected(false);
-      }
-    };
-
-    // Initialize connection only once
-    initializeConnection();
-
-    // Monitor connection status with less frequent checks
-    const connectionMonitor = setInterval(() => {
-      const isConnected = client.isConnected();
-      setWsConnected(isConnected);
-    }, 2000);
-
-    // Cleanup function - don't disconnect, just stop monitoring
-    return () => {
-      clearInterval(connectionMonitor);
-    };
-  }, []); // Run only once on mount
-
-  // Handle stock subscriptions separately - setup once when connected
+  // Stock data management
   useEffect(() => {
     const client = getStockWebSocketClient();
 
@@ -224,22 +194,22 @@ export default function Dashboard() {
       );
     };
 
-    // Only subscribe when WebSocket is connected (not when stocks update!)
-    if (wsConnected) {
-      // Use the global callback approach to avoid multiple individual subscriptions
-      const unsubscribeGlobal = client.subscribeToAll(handleMessage);
+    const handleConnectionChange = (connected: boolean) => {
+      setWsConnected(connected);
+    };
 
-      // Get initial symbols from defaultStocks constant instead of state
-      const symbols = defaultStocks.map((stock) => stock.symbol);
-      client.subscribeToSymbols(symbols);
+    client.onMessage(handleMessage);
+    client.onConnectionChange(handleConnectionChange);
 
-      console.log("Subscribed to all stocks:", symbols);
+    // Subscribe to all stocks
+    stocks.forEach((stock) => {
+      client.subscribe(stock.symbol);
+    });
 
-      return () => {
-        unsubscribeGlobal();
-      };
-    }
-  }, [wsConnected]); // Only re-run when connection status changes, NOT when stocks change
+    return () => {
+      client.cleanup();
+    };
+  }, [stocks]);
 
   const handleAddStock = (symbol: string, weight: number) => {
     setPortfolio((prev) => {
@@ -294,9 +264,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-gray-900 to-gray-800 text-white transition-colors duration-300">
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 text-white p-2 lg:p-3 flex items-center justify-between shadow-sm sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 text-gray-900 p-2 lg:p-3 flex items-center justify-between shadow-sm sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -312,13 +282,13 @@ export default function Dashboard() {
           <div
             className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
               wsConnected
-                ? "bg-green-900/40 text-green-400 border border-green-700"
-                : "bg-red-900/40 text-red-400 border border-red-700"
+                ? "bg-green-100 text-green-700 border border-green-200"
+                : "bg-red-100 text-red-700 border border-red-200"
             }`}
           >
             <div
               className={`w-2 h-2 rounded-full animate-pulse ${
-                wsConnected ? "bg-green-400" : "bg-red-400"
+                wsConnected ? "bg-green-500" : "bg-red-500"
               }`}
             ></div>
             <span className="hidden md:inline">
@@ -334,15 +304,15 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex flex-1 relative">
         {/* Left Sidebar: Enhanced Inputs - Always Visible */}
-        <aside className="w-full lg:w-96 xl:w-[28rem] p-4 lg:p-6 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700 overflow-y-auto shadow-xl lg:shadow-none">
+        <aside className="w-full lg:w-96 xl:w-[28rem] p-4 lg:p-6 bg-white/95 backdrop-blur-sm border-r border-gray-200 overflow-y-auto shadow-xl lg:shadow-none">
           {/* Portfolio Stocks Section with Border */}
           <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-gray-700/50 to-gray-600/50 rounded-xl border border-gray-600/50">
+            <div className="p-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-xl border border-blue-200/50">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-3 w-3 text-blue-400"
+                    className="h-3 w-3 text-blue-500"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
@@ -354,8 +324,8 @@ export default function Dashboard() {
                   onClick={() => setShowAddForm((s) => !s)}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
                     showAddForm
-                      ? "bg-red-900/50 text-red-400 border border-red-700"
-                      : "bg-blue-900/50 text-blue-400 border border-blue-700"
+                      ? "bg-red-50 text-red-600 border border-red-200"
+                      : "bg-blue-50 text-blue-600 border border-blue-200"
                   }`}
                 >
                   <svg
@@ -380,17 +350,17 @@ export default function Dashboard() {
 
               {/* Enhanced Collapsible Add Form */}
               {showAddForm && (
-                <div className="p-6 bg-gradient-to-br from-gray-700/50 to-gray-600/50 rounded-2xl border border-gray-600/50 mb-6 transition-all duration-300">
+                <div className="p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-200/50 mb-6 transition-all duration-300">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">
+                      <label className="block text-sm font-medium text-gray-700">
                         Stock Symbol
                       </label>
                       <div className="relative">
                         <input
                           type="text"
                           placeholder="Enter symbol (e.g., 0001.HK)"
-                          className="w-full p-3 border border-gray-600 rounded-xl text-white bg-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          className="w-full p-3 border border-gray-300 rounded-xl text-gray-900 bg-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                           value={symbolQuery || newStock.symbol}
                           onChange={(e) => {
                             setSymbolQuery(e.target.value);
@@ -417,19 +387,21 @@ export default function Dashboard() {
                       </div>
                       {/* Enhanced typeahead list */}
                       {symbolQuery && filteredSymbols.length > 0 && (
-                        <div className="border border-gray-600 bg-gray-700 rounded-xl mt-1 max-h-40 overflow-y-auto shadow-lg z-10">
+                        <div className="border border-gray-200 bg-white rounded-xl mt-1 max-h-40 overflow-y-auto shadow-lg z-10">
                           {filteredSymbols.map((s) => (
                             <div
                               key={s}
-                              className="px-4 py-3 hover:bg-gray-600 cursor-pointer text-sm transition-colors duration-150 border-b border-gray-600 last:border-b-0"
+                              className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm transition-colors duration-150 border-b border-gray-100 last:border-b-0"
                               onClick={() => {
                                 setNewStock({ ...newStock, symbol: s });
                                 setSymbolQuery(s);
                                 setFilteredSymbols([]);
                               }}
                             >
-                              <div className="font-medium text-white">{s}</div>
-                              <div className="text-xs text-gray-400">
+                              <div className="font-medium text-gray-900">
+                                {s}
+                              </div>
+                              <div className="text-xs text-gray-500">
                                 {COMPANY_NAMES[s] || "Unknown Company"}
                               </div>
                             </div>
@@ -456,13 +428,13 @@ export default function Dashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-300">
+                        <label className="block text-sm font-medium text-gray-700">
                           Quantity
                         </label>
                         <input
                           type="number"
                           placeholder="Enter quantity"
-                          className="w-full p-3 border border-gray-600 rounded-xl text-white bg-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          className="w-full p-3 border border-gray-300 rounded-xl text-gray-900 bg-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                           value={newStock.quantity || ""}
                           onChange={(e) =>
                             setNewStock({
@@ -472,7 +444,7 @@ export default function Dashboard() {
                           }
                         />
                         {errors.quantity && (
-                          <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                          <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
                             <svg
                               className="h-3 w-3"
                               viewBox="0 0 20 20"
@@ -490,14 +462,14 @@ export default function Dashboard() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-300">
+                        <label className="block text-sm font-medium text-gray-700">
                           Price ($)
                         </label>
                         <input
                           type="number"
                           step="0.01"
                           placeholder="Enter price"
-                          className="w-full p-3 border border-gray-600 rounded-xl text-white bg-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          className="w-full p-3 border border-gray-300 rounded-xl text-gray-900 bg-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                           value={newStock.price || ""}
                           onChange={(e) =>
                             setNewStock({
@@ -507,7 +479,7 @@ export default function Dashboard() {
                           }
                         />
                         {errors.price && (
-                          <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                          <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
                             <svg
                               className="h-3 w-3"
                               viewBox="0 0 20 20"
@@ -559,16 +531,16 @@ export default function Dashboard() {
                   {stocks.map((stock, index) => (
                     <div
                       key={`${stock.symbol}-${index}`}
-                      className="p-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                      className="p-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3">
                             <div>
-                              <div className="font-medium text-white">
+                              <div className="font-medium text-gray-900">
                                 {stock.symbol}
                               </div>
-                              <div className="text-xs text-gray-300 truncate">
+                              <div className="text-xs text-gray-600 truncate">
                                 {COMPANY_NAMES[stock.symbol] ??
                                   "Unknown Company"}
                               </div>
@@ -579,7 +551,7 @@ export default function Dashboard() {
                         {/* Price and Change Section - Right Side */}
                         <div className="flex items-center gap-3">
                           <div className="text-right">
-                            <div className="font-semibold text-white">
+                            <div className="font-semibold text-gray-900">
                               $
                               {stock.livePrice
                                 ? stock.livePrice.toFixed(2)
@@ -589,8 +561,8 @@ export default function Dashboard() {
                               <div
                                 className={`text-xs font-medium ${
                                   stock.percentageChange >= 0
-                                    ? "text-green-400"
-                                    : "text-red-400"
+                                    ? "text-green-600"
+                                    : "text-red-600"
                                 }`}
                               >
                                 <span>
@@ -620,7 +592,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       {/* labels for inputs */}
-                      <div className="flex items-center text-xs text-gray-300 mt-2 gap-2">
+                      <div className="flex items-center text-xs text-gray-600 mt-2 gap-2">
                         <div className="w-28 text-center">Price</div>
                         <div className="w-20 text-center">Quantity</div>
                         <div className="w-24 text-center">Weight %</div>
@@ -630,7 +602,7 @@ export default function Dashboard() {
                           type="number"
                           step="0.01"
                           placeholder="Price"
-                          className="w-28 p-1 border border-gray-600 rounded text-white bg-gray-600 placeholder-gray-400"
+                          className="w-28 p-1 border border-gray-300 rounded text-gray-900 bg-white placeholder-gray-500"
                           value={stock.price}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
@@ -645,7 +617,7 @@ export default function Dashboard() {
                         <input
                           type="number"
                           placeholder="Qty"
-                          className="w-20 p-1 border border-gray-600 rounded text-white bg-gray-600 placeholder-gray-400"
+                          className="w-20 p-1 border border-gray-300 rounded text-gray-900 bg-white placeholder-gray-500"
                           value={stock.quantity}
                           onChange={(e) => {
                             const val = parseInt(e.target.value) || 0;
@@ -660,7 +632,7 @@ export default function Dashboard() {
                         <input
                           type="number"
                           placeholder="Weight %"
-                          className="w-24 p-1 border border-gray-600 rounded text-white bg-gray-600 placeholder-gray-400"
+                          className="w-24 p-1 border border-gray-300 rounded text-gray-900 bg-white placeholder-gray-500"
                           onChange={(e) =>
                             handleAddStock(
                               stock.symbol,
@@ -679,8 +651,8 @@ export default function Dashboard() {
           {/* Delete confirmation modal - centered */}
           {confirmDeleteIndex !== null && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[60]">
-              <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl w-96 max-w-[90vw] border border-gray-600">
-                <h4 className="text-lg font-semibold text-white mb-3">
+              <div className="bg-white p-6 rounded-2xl shadow-2xl w-96 max-w-[90vw] border border-gray-200">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">
                   Confirm Removal
                 </h4>
                 <p className="text-sm text-gray-700 mb-6">
@@ -720,11 +692,11 @@ export default function Dashboard() {
 
           {/* Compact Risk Tolerance */}
           <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-purple-900/50 to-pink-900/50 rounded-xl border border-purple-600/50">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
+            <div className="p-2 bg-gradient-to-br from-purple-50/50 to-pink-50/50 rounded-xl border border-purple-200/50">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3 text-purple-400"
+                  className="h-3 w-3 text-purple-500"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -733,7 +705,7 @@ export default function Dashboard() {
                 Risk Tolerance
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-300">Low</span>
+                <span className="text-xs text-gray-600">Low</span>
                 <div className="flex-1 relative">
                   <input
                     type="range"
@@ -744,8 +716,8 @@ export default function Dashboard() {
                     className="w-full h-1.5 bg-gradient-to-r from-green-200 via-yellow-200 to-red-200 rounded-lg appearance-none cursor-pointer slider"
                   />
                 </div>
-                <span className="text-xs text-gray-300">High</span>
-                <div className="px-1.5 py-0.5 bg-gray-700 rounded-md border border-gray-600 text-xs font-medium text-purple-400">
+                <span className="text-xs text-gray-600">High</span>
+                <div className="px-1.5 py-0.5 bg-white rounded-md border text-xs font-medium text-purple-600">
                   {riskTolerance}
                 </div>
               </div>
@@ -754,11 +726,11 @@ export default function Dashboard() {
 
           {/* Compact Scenario Analysis */}
           <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-orange-900/50 to-amber-900/50 rounded-xl border border-orange-600/50">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
+            <div className="p-2 bg-gradient-to-br from-orange-50/50 to-amber-50/50 rounded-xl border border-orange-200/50">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3 text-orange-400"
+                  className="h-3 w-3 text-orange-500"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -773,7 +745,7 @@ export default function Dashboard() {
               <select
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
-                className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
               >
                 {mockScenarios.map((sc) => (
                   <option key={sc} value={sc}>
@@ -786,8 +758,8 @@ export default function Dashboard() {
 
           {/* Compact Investment Horizon */}
           <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-green-900/50 to-emerald-900/50 rounded-xl border border-green-600/50">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
+            <div className="p-2 bg-gradient-to-br from-green-50/50 to-emerald-50/50 rounded-xl border border-green-200/50">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-3 w-3 text-green-500"
@@ -820,7 +792,7 @@ export default function Dashboard() {
                       className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 border ${
                         horizon === option.value
                           ? "bg-green-500 text-white border-green-500"
-                          : "bg-gray-700 text-gray-300 border-gray-600 hover:border-green-400"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-green-300"
                       }`}
                     >
                       {option.label}
@@ -836,12 +808,12 @@ export default function Dashboard() {
                       onChange={(e) =>
                         setCustomHorizonValue(parseInt(e.target.value || "1"))
                       }
-                      className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      className="flex-1 p-1.5 border border-gray-300 rounded-md text-gray-900 bg-white text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                     />
                     <select
                       value={horizonUnit}
                       onChange={(e) => setHorizonUnit(e.target.value)}
-                      className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      className="flex-1 p-1.5 border border-gray-300 rounded-md text-gray-900 bg-white text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                     >
                       <option value="minutes">Minutes</option>
                       <option value="hours">Hours</option>
@@ -881,8 +853,8 @@ export default function Dashboard() {
           {/* Enhanced Charts Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {/* Enhanced Efficient Frontier */}
-            <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h3 className="text-lg font-semibold mb-3 text-gray-900 flex items-center gap-2">
                 <div className="w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"></div>
                 Efficient Frontier
               </h3>
@@ -897,29 +869,29 @@ export default function Dashboard() {
                         title: {
                           display: true,
                           text: "Risk (Std Dev)",
-                          color: "#fff",
+                          color: "#000",
                         },
-                        ticks: { color: "#fff" },
+                        ticks: { color: "#000" },
                         grid: {
-                          color: "#4B5563",
+                          color: "#e5e7eb",
                         },
                       },
                       y: {
                         title: {
                           display: true,
                           text: "Return (%)",
-                          color: "#fff",
+                          color: "#000",
                         },
-                        ticks: { color: "#fff" },
+                        ticks: { color: "#000" },
                         grid: {
-                          color: "#4B5563",
+                          color: "#e5e7eb",
                         },
                       },
                     },
                     plugins: {
                       legend: {
                         labels: {
-                          color: "#fff",
+                          color: "#000",
                         },
                       },
                     },
@@ -929,8 +901,8 @@ export default function Dashboard() {
             </div>
 
             {/* Enhanced Portfolio Performance */}
-            <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h3 className="text-lg font-semibold mb-3 text-gray-900 flex items-center gap-2">
                 <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-cyan-500 rounded-full"></div>
                 Portfolio Performance
               </h3>
@@ -945,29 +917,29 @@ export default function Dashboard() {
                         title: {
                           display: true,
                           text: "Time",
-                          color: "#fff",
+                          color: "#000",
                         },
-                        ticks: { color: "#fff" },
+                        ticks: { color: "#000" },
                         grid: {
-                          color: "#4B5563",
+                          color: "#e5e7eb",
                         },
                       },
                       y: {
                         title: {
                           display: true,
                           text: "Value ($)",
-                          color: "#fff",
+                          color: "#000",
                         },
-                        ticks: { color: "#fff" },
+                        ticks: { color: "#000" },
                         grid: {
-                          color: "#4B5563",
+                          color: "#e5e7eb",
                         },
                       },
                     },
                     plugins: {
                       legend: {
                         labels: {
-                          color: "#fff",
+                          color: "#000",
                         },
                       },
                     },
@@ -977,8 +949,8 @@ export default function Dashboard() {
             </div>
 
             {/* Enhanced Recommended Portfolio */}
-            <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h3 className="text-lg font-semibold mb-3 text-gray-900 flex items-center gap-2">
                 <div className="w-3 h-3 bg-gradient-to-r from-violet-400 to-purple-500 rounded-full"></div>
                 Recommended Portfolio
               </h3>
@@ -986,19 +958,21 @@ export default function Dashboard() {
                 {portfolio.map(({ symbol, weight }) => (
                   <div
                     key={symbol}
-                    className="flex items-center justify-between p-3 bg-gray-700 rounded-xl border border-gray-600"
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <span className="font-medium text-white">{symbol}</span>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="font-medium text-gray-900">
+                        {symbol}
+                      </span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-300">
+                    <span className="text-sm font-semibold text-gray-700">
                       {weight.toFixed(1)}%
                     </span>
                   </div>
                 ))}
                 {portfolio.length === 0 && (
-                  <p className="text-gray-400 text-center py-8">
+                  <p className="text-gray-500 text-center py-8">
                     Click "Optimize Portfolio" to generate recommendations
                   </p>
                 )}

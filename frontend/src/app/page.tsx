@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Line, Scatter } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -34,6 +34,29 @@ const defaultStocks: Stock[] = [
   { symbol: "0001.HK", price: 50.2, quantity: 0 },
   { symbol: "0002.HK", price: 65.3, quantity: 0 },
   { symbol: "0003.HK", price: 7.1, quantity: 0 },
+];
+
+const COMPANY_NAMES: Record<string, string> = {
+  "0001.HK": "CK Hutchison",
+  "0002.HK": "CLP Holdings",
+  "0003.HK": "Hong Kong and China Gas",
+  "0004.HK": "WH Group",
+  "0388.HK": "Kingfisher",
+  "0700.HK": "Tencent",
+};
+
+// Small sample list for the typeahead dropdown — extend as needed
+const AVAILABLE_SYMBOLS = [
+  "0001.HK",
+  "0002.HK",
+  "0003.HK",
+  "0004.HK",
+  "0388.HK",
+  "0700.HK",
+  "0005.HK",
+  "0011.HK",
+  "3988.HK",
+  "1299.HK",
 ];
 
 const mockEfficientFrontierData = {
@@ -76,12 +99,13 @@ const mockScenarios = ["Base", "Optimistic", "Pessimistic", "Sentiment-Driven"];
 
 export default function Dashboard() {
   const [stocks, setStocks] = useState<Stock[]>(defaultStocks);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
   const [portfolio, setPortfolio] = useState<
     { symbol: string; weight: number }[]
   >([]);
   const [riskTolerance, setRiskTolerance] = useState(5); // 1-10 scale
   const [horizon, setHorizon] = useState(5); // years
-  const [assumptions, setAssumptions] = useState("");
   const [scenario, setScenario] = useState(mockScenarios[0]);
   const [newStock, setNewStock] = useState<Stock>({
     symbol: "",
@@ -91,6 +115,14 @@ export default function Dashboard() {
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(
     null
   );
+  const [symbolQuery, setSymbolQuery] = useState("");
+  const [filteredSymbols, setFilteredSymbols] =
+    useState<string[]>(AVAILABLE_SYMBOLS);
+  const [errors, setErrors] = useState<{
+    symbol?: string;
+    price?: string;
+    quantity?: string;
+  }>({});
 
   const handleAddStock = (symbol: string, weight: number) => {
     setPortfolio([...portfolio, { symbol, weight }]);
@@ -102,262 +134,405 @@ export default function Dashboard() {
       portfolio,
       riskTolerance,
       horizon,
-      assumptions,
+
       scenario,
     });
     // Update charts with real data from backend
   };
 
+  // persist stocks to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("stocks", JSON.stringify(stocks));
+    } catch (e) {
+      /* ignore */
+    }
+  }, [stocks]);
+
+  // simple typeahead filtering for available symbols
+  useEffect(() => {
+    const q = (symbolQuery || "").trim().toUpperCase();
+    if (!q) setFilteredSymbols(AVAILABLE_SYMBOLS.slice(0, 10));
+    else
+      setFilteredSymbols(
+        AVAILABLE_SYMBOLS.filter((s) => s.includes(q)).slice(0, 10)
+      );
+  }, [symbolQuery]);
+
   return (
     <div className="flex flex-col h-full w-full bg-gray-100">
       {/* Header */}
-      <header className="bg-blue-700 text-white p-4 text-center">
+      <header className="bg-blue-700 text-white p-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">
           Intelligent AI-Powered Financial Advisor
         </h1>
+        <div>
+          <button
+            onClick={() => setShowSidebar((s) => !s)}
+            className="px-3 py-1 bg-blue-800 rounded text-sm"
+          >
+            {showSidebar ? "Hide Inputs" : "Show Inputs"}
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
       <main className="flex flex-1 overflow-hidden">
         {/* Left Sidebar: Inputs */}
-        <aside className="w-1/4 p-4 bg-white border-r border-gray-200 overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">
-            User Inputs
-          </h2>
+        {showSidebar && (
+          <aside className="w-1/4 p-4 bg-white border-r border-gray-200 overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">
+              User Inputs
+            </h2>
 
-          {/* Portfolio Stocks */}
-          <section className="mb-6">
-            <h3 className="text-lg font-medium mb-2">Portfolio Stocks</h3>
-            <div className="space-y-4">
-              {/* Add New Stock Form */}
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
-                <h4 className="text-sm font-semibold mb-2 text-gray-900">
-                  Add New Stock
-                </h4>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Symbol (e.g., 0001.HK)"
-                    className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-                    value={newStock.symbol}
-                    onChange={(e) =>
-                      setNewStock({ ...newStock, symbol: e.target.value })
-                    }
-                  />
-                  {/* Name not required. Collect quantity instead. */}
-                  <input
-                    type="number"
-                    placeholder="Quantity"
-                    className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-                    value={newStock.quantity || ""}
-                    onChange={(e) =>
-                      setNewStock({
-                        ...newStock,
-                        quantity: parseInt(e.target.value) || 0,
-                      })
-                    }
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      className="flex-1 p-2 border border-gray-300 rounded"
-                      value={newStock.price || ""}
-                      onChange={(e) =>
-                        setNewStock({
-                          ...newStock,
-                          price: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                    <button
-                      onClick={() => {
-                        if (newStock.symbol) {
-                          setStocks([...stocks, newStock]);
-                          setNewStock({ symbol: "", price: 0, quantity: 0 });
-                        }
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stock List */}
+            {/* Portfolio Stocks */}
+            <section className="mb-6">
+              <h3 className="text-lg font-medium mb-2">Portfolio Stocks</h3>
               <div className="space-y-2">
-                {stocks.map((stock, index) => (
-                  <div
-                    key={stock.symbol}
-                    className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded"
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Manage your stock positions
+                  </div>
+                  <button
+                    onClick={() => setShowAddForm((s) => !s)}
+                    className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">
-                        {stock.symbol}
+                    {showAddForm ? "Hide" : "Add New"}
+                  </button>
+                </div>
+
+                {/* Collapsible Add Form */}
+                {showAddForm && (
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-300 mt-2 transition-all duration-200 ease-out">
+                    <div className="space-y-2">
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Symbol (type or pick)"
+                          className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
+                          value={symbolQuery || newStock.symbol}
+                          onChange={(e) => {
+                            setSymbolQuery(e.target.value);
+                            setNewStock({
+                              ...newStock,
+                              symbol: e.target.value.toUpperCase(),
+                            });
+                          }}
+                        />
+                        {/* typeahead list */}
+                        {symbolQuery && filteredSymbols.length > 0 && (
+                          <div className="border border-gray-200 bg-white rounded mt-1 max-h-40 overflow-y-auto">
+                            {filteredSymbols.map((s) => (
+                              <div
+                                key={s}
+                                className="px-2 py-1 hover:bg-gray-100 cursor-pointer text-sm"
+                                onClick={() => {
+                                  setNewStock({ ...newStock, symbol: s });
+                                  setSymbolQuery(s);
+                                  setFilteredSymbols([]);
+                                }}
+                              >
+                                {s}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {errors.symbol && (
+                          <div className="text-xs text-red-600 mt-1">
+                            {errors.symbol}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-700">
-                        Price: ${stock.price.toFixed(2)}
+                      <div>
+                        <input
+                          type="number"
+                          placeholder="Quantity"
+                          className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
+                          value={newStock.quantity || ""}
+                          onChange={(e) =>
+                            setNewStock({
+                              ...newStock,
+                              quantity: parseInt(e.target.value) || 0,
+                            })
+                          }
+                        />
+                        {errors.quantity && (
+                          <div className="text-xs text-red-600 mt-1">
+                            {errors.quantity}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-700">
-                        Quantity: {stock.quantity}
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Price"
+                          className="flex-1 p-2 border border-gray-300 rounded"
+                          value={newStock.price || ""}
+                          onChange={(e) =>
+                            setNewStock({
+                              ...newStock,
+                              price: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                        />
+                        {errors.price && (
+                          <div className="text-xs text-red-600 mt-1">
+                            {errors.price}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            // validation
+                            const e: typeof errors = {};
+                            if (!newStock.symbol)
+                              e.symbol = "Symbol is required";
+                            if (newStock.price <= 0)
+                              e.price = "Price must be > 0";
+                            if (newStock.quantity <= 0)
+                              e.quantity = "Quantity must be > 0";
+                            setErrors(e);
+                            if (Object.keys(e).length === 0) {
+                              setStocks([...stocks, newStock]);
+                              setNewStock({
+                                symbol: "",
+                                price: 0,
+                                quantity: 0,
+                              });
+                              setSymbolQuery("");
+                              setShowAddForm(false);
+                            }
+                          }}
+                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                          Add
+                        </button>
                       </div>
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Price"
-                      className="w-28 p-1 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-                      value={stock.price}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        const updated = [...stocks];
-                        updated[index] = { ...updated[index], price: val };
-                        setStocks(updated);
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Qty"
-                      className="w-20 p-1 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-                      value={stock.quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        const updated = [...stocks];
-                        updated[index] = { ...updated[index], quantity: val };
-                        setStocks(updated);
-                      }}
-                    />
-                    <button
-                      onClick={() => setConfirmDeleteIndex(index)}
-                      className="p-1 text-red-600 hover:text-red-800"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M6 2a1 1 0 00-1 1v1H3a1 1 0 000 2h14a1 1 0 000-2h-2V3a1 1 0 00-1-1H6zm2 6a1 1 0 10-2 0v7a1 1 0 102 0V8zm6 0a1 1 0 10-2 0v7a1 1 0 102 0V8z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
+                )}
 
-          {/* Delete confirmation modal (simple inline) */}
-          {confirmDeleteIndex !== null && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
-              <div className="bg-white p-4 rounded shadow-md w-96">
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  Confirm removal
-                </h4>
-                <p className="text-sm text-gray-700 mb-4">
-                  Are you sure you want to remove{" "}
-                  {stocks[confirmDeleteIndex].symbol}?
-                </p>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setConfirmDeleteIndex(null)}
-                    className="px-3 py-1 border rounded bg-gray-100 text-gray-900"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      const idx = confirmDeleteIndex;
-                      if (idx === null) return;
-                      const newStocks = [...stocks];
-                      const removed = newStocks.splice(idx, 1);
-                      setStocks(newStocks);
-                      setPortfolio(
-                        portfolio.filter((p) => p.symbol !== removed[0].symbol)
-                      );
-                      setConfirmDeleteIndex(null);
-                    }}
-                    className="px-3 py-1 bg-red-600 text-white rounded"
-                  >
-                    Remove
-                  </button>
+                {/* Scrollable Stock List */}
+                <div className="overflow-y-auto max-h-64 mt-2 space-y-2 pr-2">
+                  {stocks.map((stock, index) => (
+                    <div
+                      key={`${stock.symbol}-${index}`}
+                      className="p-2 bg-white border border-gray-200 rounded"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {stock.symbol}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setConfirmDeleteIndex(index)}
+                          className="p-1 text-red-600 hover:text-red-800"
+                          aria-label={`Remove ${stock.symbol}`}
+                        >
+                          {/* simple X icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      {/* labels for inputs */}
+                      <div className="flex items-center text-sm text-gray-600 mt-2 gap-4">
+                        <div className="w-28">Price</div>
+                        <div className="w-20">Quantity</div>
+                        <div className="w-24">Weight</div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Price"
+                          className="w-28 p-1 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
+                          value={stock.price}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            const updated = [...stocks];
+                            updated[index] = { ...updated[index], price: val };
+                            setStocks(updated);
+                          }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Qty"
+                          className="w-20 p-1 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
+                          value={stock.quantity}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            const updated = [...stocks];
+                            updated[index] = {
+                              ...updated[index],
+                              quantity: val,
+                            };
+                            setStocks(updated);
+                          }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Weight %"
+                          className="w-24 p-1 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
+                          onChange={(e) =>
+                            handleAddStock(
+                              stock.symbol,
+                              parseFloat(e.target.value)
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          )}
+            </section>
 
-          {/* Risk Tolerance */}
-          <section className="mb-6">
-            <h3 className="text-lg font-medium mb-2 text-gray-900">
-              Risk Tolerance (1-10)
-            </h3>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={riskTolerance}
-              onChange={(e) => setRiskTolerance(parseInt(e.target.value))}
-              className="w-full accent-blue-600"
-            />
-            <p className="text-center text-gray-900 font-medium mt-1">
-              {riskTolerance}
-            </p>
-          </section>
+            {/* Delete confirmation modal (simple inline) */}
+            {confirmDeleteIndex !== null && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white p-4 rounded shadow-md w-96">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                    Confirm removal
+                  </h4>
+                  <p className="text-sm text-gray-700 mb-4">
+                    Are you sure you want to remove{" "}
+                    {stocks[confirmDeleteIndex].symbol}?
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setConfirmDeleteIndex(null)}
+                      className="px-3 py-1 border rounded bg-gray-100 text-gray-900"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        const idx = confirmDeleteIndex;
+                        if (idx === null) return;
+                        const newStocks = [...stocks];
+                        const removed = newStocks.splice(idx, 1);
+                        setStocks(newStocks);
+                        setPortfolio(
+                          portfolio.filter(
+                            (p) => p.symbol !== removed[0].symbol
+                          )
+                        );
+                        setConfirmDeleteIndex(null);
+                      }}
+                      className="px-3 py-1 bg-red-600 text-white rounded"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* Investment Horizon */}
-          <section className="mb-6">
-            <h3 className="text-lg font-medium mb-2 text-gray-900">
-              Investment Horizon (Years)
-            </h3>
-            <input
-              type="number"
-              value={horizon}
-              onChange={(e) => setHorizon(parseInt(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded text-gray-900"
-            />
-          </section>
+            {/* Risk Tolerance */}
+            <section className="mb-6">
+              <h3 className="text-lg font-medium mb-2 text-gray-900">
+                Risk Tolerance
+              </h3>
+              <div className="flex gap-2 flex-wrap">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setRiskTolerance(n)}
+                    className={`w-8 h-8 rounded ${
+                      riskTolerance === n
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-800"
+                    } flex items-center justify-center`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-          {/* Assumptions */}
-          <section className="mb-6">
-            <h3 className="text-lg font-medium mb-2 text-gray-900">
-              Assumptions
-            </h3>
-            <textarea
-              value={assumptions}
-              onChange={(e) => setAssumptions(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-              rows={4}
-            />
-          </section>
+            {/* Investment Horizon */}
+            <section className="mb-6">
+              <h3 className="text-lg font-medium mb-2 text-gray-900">
+                Investment Horizon
+              </h3>
+              <div className="flex gap-2 flex-wrap mb-2">
+                {[1, 3, 5, 10].map((y) => (
+                  <button
+                    key={y}
+                    onClick={() => setHorizon(y)}
+                    className={`px-3 py-1 rounded ${
+                      horizon === y
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {y}y
+                  </button>
+                ))}
+                <button
+                  onClick={() => setHorizon(0)}
+                  className={`px-3 py-1 rounded ${
+                    horizon === 0
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+              {horizon === 0 && (
+                <input
+                  type="number"
+                  placeholder="Custom years"
+                  value={horizon === 0 ? "" : horizon}
+                  onChange={(e) => setHorizon(parseInt(e.target.value || "0"))}
+                  className="w-full p-2 border border-gray-300 rounded text-gray-900"
+                />
+              )}
+            </section>
 
-          {/* Scenario Toggles */}
-          <section className="mb-6">
-            <h3 className="text-lg font-medium mb-2 text-gray-900">Scenario</h3>
-            <select
-              value={scenario}
-              onChange={(e) => setScenario(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded text-gray-900 bg-white"
+            {/* Assumptions removed (NLP not integrated) */}
+
+            {/* Scenario Toggles */}
+            <section className="mb-6">
+              <h3 className="text-lg font-medium mb-2 text-gray-900">
+                Scenario
+              </h3>
+              <select
+                value={scenario}
+                onChange={(e) => setScenario(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded text-gray-900 bg-white"
+              >
+                {mockScenarios.map((sc) => (
+                  <option key={sc} value={sc}>
+                    {sc}
+                  </option>
+                ))}
+              </select>
+            </section>
+
+            {/* Optimize Button */}
+            <button
+              onClick={handleOptimize}
+              className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
             >
-              {mockScenarios.map((sc) => (
-                <option key={sc} value={sc}>
-                  {sc}
-                </option>
-              ))}
-            </select>
-          </section>
-
-          {/* Optimize Button */}
-          <button
-            onClick={handleOptimize}
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-          >
-            Optimize Portfolio
-          </button>
-        </aside>
+              Optimize Portfolio
+            </button>
+          </aside>
+        )}
 
         {/* Right: Visualizations */}
         <section className="flex-1 p-4 overflow-y-auto">

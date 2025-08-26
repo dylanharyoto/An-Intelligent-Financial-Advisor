@@ -115,6 +115,8 @@ export default function Dashboard() {
   >([]);
   const [riskTolerance, setRiskTolerance] = useState(5); // 1-10 scale
   const [horizon, setHorizon] = useState(5); // years
+  const [customHorizonValue, setCustomHorizonValue] = useState<number>(1);
+  const [horizonUnit, setHorizonUnit] = useState<string>("yearly");
   const [scenario, setScenario] = useState(mockScenarios[0]);
   const [newStock, setNewStock] = useState<Stock>({
     symbol: "",
@@ -174,19 +176,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-gray-100 dark:bg-gray-900">
+    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white p-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">
           Intelligent AI-Powered Financial Advisor
         </h1>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => setShowSidebar((s) => !s)}
-            className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm hover:bg-gray-300 dark:hover:bg-gray-600"
-          >
-            {showSidebar ? "Hide Inputs" : "Show Inputs"}
-          </button>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -201,10 +197,27 @@ export default function Dashboard() {
       <main className="flex flex-1 overflow-hidden">
         {/* Left Sidebar: Inputs */}
         {showSidebar && (
-          <aside className="w-full md:w-1/3 lg:w-1/4 p-4 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              User Inputs
-            </h2>
+          <aside className="relative w-full md:w-1/3 lg:w-1/4 p-4 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+            {/* small circular collapse toggle positioned on the panel's right edge */}
+            <button
+              onClick={() => setShowSidebar(false)}
+              title="Collapse panel"
+              aria-label="Collapse panel"
+              className="absolute right-0 top-6 transform translate-x-1/2 -translate-y-0 z-40 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 shadow"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 text-gray-900 dark:text-white"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
 
             {/* Portfolio Stocks */}
             <section className="mb-6">
@@ -213,9 +226,6 @@ export default function Dashboard() {
               </h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700 dark:text-gray-300">
-                    Manage your stock positions
-                  </div>
                   <button
                     onClick={() => setShowAddForm((s) => !s)}
                     className="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -466,29 +476,25 @@ export default function Dashboard() {
 
             {/* Risk Tolerance */}
             <section className="mb-6">
-              <h3 className="text-lg font-medium mb-2 text-gray-900">
+              <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
                 Risk Tolerance
               </h3>
-              <div className="flex gap-2 flex-wrap">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setRiskTolerance(n)}
-                    className={`w-8 h-8 rounded ${
-                      riskTolerance === n
-                        ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    } flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600`}
-                  >
-                    {n}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={riskTolerance}
+                  onChange={(e) => setRiskTolerance(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg accent-black dark:accent-white"
+                />
+                <div className="w-8 text-center">{riskTolerance}</div>
               </div>
             </section>
 
             {/* Investment Horizon */}
             <section className="mb-6">
-              <h3 className="text-lg font-medium mb-2 text-gray-900">
+              <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
                 Investment Horizon
               </h3>
               <div className="flex gap-2 flex-wrap mb-2">
@@ -509,21 +515,36 @@ export default function Dashboard() {
                   onClick={() => setHorizon(0)}
                   className={`px-3 py-1 rounded ${
                     horizon === 0
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
+                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  } hover:bg-gray-200 dark:hover:bg-gray-600`}
                 >
                   Custom
                 </button>
               </div>
               {horizon === 0 && (
-                <input
-                  type="number"
-                  placeholder="Custom years"
-                  value={horizon === 0 ? "" : horizon}
-                  onChange={(e) => setHorizon(parseInt(e.target.value || "0"))}
-                  className="w-full p-2 border border-gray-300 rounded text-gray-900"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={customHorizonValue}
+                    onChange={(e) =>
+                      setCustomHorizonValue(parseInt(e.target.value || "1"))
+                    }
+                    className="w-2/3 p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                  />
+                  <select
+                    value={horizonUnit}
+                    onChange={(e) => setHorizonUnit(e.target.value)}
+                    className="w-1/3 p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                  >
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                    <option value="daily">Daily</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
               )}
             </section>
 
@@ -557,11 +578,34 @@ export default function Dashboard() {
           </aside>
         )}
 
+        {/* persistent collapsed toggle (shown when sidebar hidden) */}
+        {!showSidebar && (
+          <button
+            onClick={() => setShowSidebar(true)}
+            aria-label="Open panel"
+            title="Open panel"
+            className="fixed left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 z-50 p-2 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-lg border border-gray-700 dark:border-gray-300"
+            style={{ width: 36, height: 36 }}
+          >
+            {/* small chevron pointing right */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        )}
+
         {/* Right: Visualizations */}
         <section className="flex-1 p-4 overflow-y-auto bg-white dark:bg-gray-800">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-            Visualizations
-          </h2>
+          {/* visual area header removed per UX request */}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Efficient Frontier */}
@@ -569,7 +613,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
                 Efficient Frontier
               </h3>
-              <div className="aspect-square w-full">
+              <div className="w-full h-[40vh]">
                 <Scatter
                   data={mockEfficientFrontierData}
                   options={{
@@ -616,7 +660,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
                 Projected Portfolio Growth
               </h3>
-              <div className="aspect-square w-full">
+              <div className="w-full h-[40vh]">
                 <Line
                   data={mockGrowthData}
                   options={{
@@ -658,8 +702,19 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Risk-Return Trade-offs (Placeholder) */}
-            <div className="lg:col-span-2 bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+            {/* Recommended Portfolio */}
+            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
+                Recommended Portfolio
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                This section will display the recommended portfolio based on the
+                analysis.
+              </p>
+            </div>
+
+            {/* Risk-Return Trade-offs */}
+            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:col-span-1">
               <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
                 Risk-Return Trade-offs
               </h3>

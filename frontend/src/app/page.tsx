@@ -13,6 +13,7 @@ import {
   Legend,
 } from "chart.js";
 import { useTheme } from "next-themes";
+import { getStockWebSocketClient, StockData } from "../services/stockWebSocket";
 
 // Register Chart.js components
 ChartJS.register(
@@ -29,6 +30,10 @@ interface Stock {
   symbol: string;
   price: number;
   quantity: number;
+  livePrice?: number;
+  priceChange?: number;
+  percentageChange?: number;
+  lastUpdated?: string;
 }
 
 const defaultStocks: Stock[] = [
@@ -113,6 +118,7 @@ export default function Dashboard() {
   const [portfolio, setPortfolio] = useState<
     { symbol: string; weight: number }[]
   >([]);
+  const [wsConnected, setWsConnected] = useState(false);
   const [riskTolerance, setRiskTolerance] = useState(5); // 1-10 scale
   const [horizon, setHorizon] = useState(5); // years
   const [customHorizonValue, setCustomHorizonValue] = useState<number>(1);
@@ -160,6 +166,64 @@ export default function Dashboard() {
     }
   }, [stocks]);
 
+  // WebSocket connection for live stock data
+  useEffect(() => {
+    const wsClient = getStockWebSocketClient();
+
+    // Connect to WebSocket
+    wsClient
+      .connect()
+      .then(() => {
+        setWsConnected(true);
+        console.log("Connected to stock WebSocket service");
+
+        // Subscribe to all stocks in our portfolio
+        const symbols = stocks.map((stock) => stock.symbol);
+        if (symbols.length > 0) {
+          wsClient.subscribeToSymbols(symbols);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to connect to WebSocket:", error);
+        setWsConnected(false);
+      });
+
+    // Subscribe to all stock updates
+    const unsubscribe = wsClient.subscribeToAll((data: StockData) => {
+      setStocks((prevStocks) =>
+        prevStocks.map((stock) =>
+          stock.symbol === data.symbol
+            ? {
+                ...stock,
+                livePrice: data.price,
+                priceChange: data.priceChange,
+                percentageChange: data.percentageChange,
+                lastUpdated: data.timestamp,
+              }
+            : stock
+        )
+      );
+    });
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribe();
+      wsClient.disconnect();
+      setWsConnected(false);
+    };
+  }, []);
+
+  // Update WebSocket subscriptions when stocks change
+  useEffect(() => {
+    if (wsConnected) {
+      const wsClient = getStockWebSocketClient();
+      const symbols = stocks.map((stock) => stock.symbol);
+      if (symbols.length > 0) {
+        wsClient.subscribeToSymbols(symbols);
+      }
+    }
+  }, [stocks, wsConnected]);
+
   // simple typeahead filtering for available symbols
   useEffect(() => {
     const q = (symbolQuery || "").trim().toUpperCase();
@@ -183,6 +247,22 @@ export default function Dashboard() {
           Intelligent AI-Powered Financial Advisor
         </h1>
         <div className="flex items-center gap-4">
+          {/* WebSocket Connection Status */}
+          <div
+            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs ${
+              wsConnected
+                ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+            }`}
+          >
+            <div
+              className={`w-2 h-2 rounded-full ${
+                wsConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+            ></div>
+            {wsConnected ? "Live Data Connected" : "Live Data Disconnected"}
+          </div>
+
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -316,8 +396,7 @@ export default function Dashboard() {
                         onClick={() => {
                           // validation
                           const e: typeof errors = {};
-                          if (!newStock.symbol)
-                            e.symbol = "Symbol is required";
+                          if (!newStock.symbol) e.symbol = "Symbol is required";
                           if (newStock.price <= 0)
                             e.price = "Price must be > 0";
                           if (newStock.quantity <= 0)
@@ -351,12 +430,53 @@ export default function Dashboard() {
                     className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded"
                   >
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-medium text-gray-900 dark:text-white">
                           {stock.symbol}
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
                           {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
+                        </div>
+
+                        {/* Live Price Section */}
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center gap-3">
+                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                              $
+                              {stock.livePrice
+                                ? stock.livePrice.toFixed(2)
+                                : stock.price.toFixed(2)}
+                            </div>
+                            {stock.percentageChange !== undefined && (
+                              <div
+                                className={`flex items-center text-sm font-medium ${
+                                  stock.percentageChange >= 0
+                                    ? "text-green-600 dark:text-green-400"
+                                    : "text-red-600 dark:text-red-400"
+                                }`}
+                              >
+                                <span className="mr-1">
+                                  {stock.percentageChange >= 0 ? "↗" : "↘"}
+                                </span>
+                                {stock.priceChange !== undefined && (
+                                  <span>
+                                    {stock.priceChange >= 0 ? "+" : ""}$
+                                    {stock.priceChange.toFixed(2)}
+                                  </span>
+                                )}
+                                <span className="ml-1">
+                                  ({stock.percentageChange >= 0 ? "+" : ""}
+                                  {stock.percentageChange.toFixed(2)}%)
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {stock.lastUpdated && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Last updated:{" "}
+                              {new Date(stock.lastUpdated).toLocaleTimeString()}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <button
@@ -374,58 +494,58 @@ export default function Dashboard() {
                           <path
                             fillRule="evenodd"
                             d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      {/* labels for inputs */}
-                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2 gap-4">
-                        <div className="w-28">Price</div>
-                        <div className="w-20">Quantity</div>
-                        <div className="w-24">Weight</div>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Price"
-                          className="w-28 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                          value={stock.price}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const updated = [...stocks];
-                            updated[index] = { ...updated[index], price: val };
-                            setStocks(updated);
-                          }}
-                        />
-                        <input
-                          type="number"
-                          placeholder="Qty"
-                          className="w-20 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                          value={stock.quantity}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0;
-                            const updated = [...stocks];
-                            updated[index] = {
-                              ...updated[index],
-                              quantity: val,
-                            };
-                            setStocks(updated);
-                          }}
-                        />
-                        <input
-                          type="number"
-                          placeholder="Weight %"
-                          className="w-24 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                          onChange={(e) =>
-                            handleAddStock(
-                              stock.symbol,
-                              parseFloat(e.target.value)
-                            )
-                          }
-                        />
-                      </div>
+                          />
+                        </svg>
+                      </button>
                     </div>
+                    {/* labels for inputs */}
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2 gap-4">
+                      <div className="w-28">Price</div>
+                      <div className="w-20">Quantity</div>
+                      <div className="w-24">Weight</div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Price"
+                        className="w-28 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
+                        value={stock.price}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const updated = [...stocks];
+                          updated[index] = { ...updated[index], price: val };
+                          setStocks(updated);
+                        }}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Qty"
+                        className="w-20 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
+                        value={stock.quantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 0;
+                          const updated = [...stocks];
+                          updated[index] = {
+                            ...updated[index],
+                            quantity: val,
+                          };
+                          setStocks(updated);
+                        }}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Weight %"
+                        className="w-24 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
+                        onChange={(e) =>
+                          handleAddStock(
+                            stock.symbol,
+                            parseFloat(e.target.value)
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>

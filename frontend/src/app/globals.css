@@ -71,3 +71,13 @@ body {
     background-color: rgba(31, 41, 55, 0.95);
   }
 }
+
+/* Hide scrollbars */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}

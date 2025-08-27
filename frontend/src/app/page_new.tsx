@@ -123,8 +123,6 @@ export default function Home() {
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [symbolQuery, setSymbolQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [filteredStocks, setFilteredStocks] = useState<string[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -135,12 +133,6 @@ export default function Home() {
   const [scenario, setScenario] = useState("Normal Market");
   const [wsConnected, setWsConnected] = useState(false);
   const wsClient = useRef<any>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [editingStock, setEditingStock] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({
-    price: 0,
-    quantity: 0,
-  });
 
   const mockScenarios = [
     "Normal Market",
@@ -167,12 +159,12 @@ export default function Home() {
   };
 
   const mockAllocationData = {
-    labels: ["Stocks", "Cash"],
+    labels: ["Stocks", "Bonds", "Cash"],
     datasets: [
       {
-        data: [90, 10],
-        backgroundColor: ["#3B82F6", "#8B5CF6"],
-        borderColor: ["#1D4ED8", "#7C3AED"],
+        data: [65, 25, 10],
+        backgroundColor: ["#3B82F6", "#10B981", "#8B5CF6"],
+        borderColor: ["#1D4ED8", "#059669", "#7C3AED"],
         borderWidth: 2,
       },
     ],
@@ -243,44 +235,32 @@ export default function Home() {
   }
 
   useEffect(() => {
-    // Initialize WebSocket connection with error handling
-    try {
-      wsClient.current = getStockWebSocketClient();
+    // Initialize WebSocket connection
+    wsClient.current = getStockWebSocketClient();
 
-      wsClient.current.connect().catch((error: any) => {
-        console.warn("WebSocket connection failed:", error);
-        setWsConnected(false);
-      });
+    wsClient.current.connect();
 
-      wsClient.current.onMessage((data: StockData) => {
-        setStocks((prevStocks) =>
-          prevStocks.map((stock) =>
-            stock.symbol === data.symbol
-              ? {
-                  ...stock,
-                  livePrice: data.price,
-                  percentageChange: data.percentageChange,
-                }
-              : stock
-          )
-        );
-      });
+    wsClient.current.onMessage((data: StockData) => {
+      setStocks((prevStocks) =>
+        prevStocks.map((stock) =>
+          stock.symbol === data.symbol
+            ? {
+                ...stock,
+                livePrice: data.price,
+                percentageChange: data.percentageChange,
+              }
+            : stock
+        )
+      );
+    });
 
-      wsClient.current.onConnectionChange((connected: boolean) => {
-        setWsConnected(connected);
-      });
-    } catch (error: any) {
-      console.warn("WebSocket initialization failed:", error);
-      setWsConnected(false);
-    }
+    wsClient.current.onConnectionChange((connected: boolean) => {
+      setWsConnected(connected);
+    });
 
     return () => {
       if (wsClient.current) {
-        try {
-          wsClient.current.disconnect();
-        } catch (error: any) {
-          console.warn("WebSocket disconnect failed:", error);
-        }
+        wsClient.current.disconnect();
       }
     };
   }, []);
@@ -288,49 +268,10 @@ export default function Home() {
   useEffect(() => {
     // Subscribe to stock symbols when stocks change
     if (wsClient.current && stocks.length > 0) {
-      try {
-        const symbols = stocks.map((stock) => stock.symbol);
-        wsClient.current.subscribeToStocks(symbols);
-      } catch (error: any) {
-        console.warn("Stock subscription failed:", error);
-      }
+      const symbols = stocks.map((stock) => stock.symbol);
+      wsClient.current.subscribeToStocks(symbols);
     }
   }, [stocks]);
-
-  useEffect(() => {
-    // Filter stocks based on search query
-    if (symbolQuery.length > 0) {
-      const filtered = Object.keys(COMPANY_NAMES).filter(
-        (symbol) =>
-          symbol.toLowerCase().includes(symbolQuery.toLowerCase()) ||
-          COMPANY_NAMES[symbol]
-            .toLowerCase()
-            .includes(symbolQuery.toLowerCase())
-      );
-      setFilteredStocks(filtered.slice(0, 10)); // Limit to 10 results
-      setShowDropdown(filtered.length > 0);
-    } else {
-      setFilteredStocks([]);
-      setShowDropdown(false);
-    }
-  }, [symbolQuery]);
-
-  useEffect(() => {
-    // Handle click outside to close dropdown
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const handleOptimize = async () => {
     if (stocks.length === 0) {
@@ -354,47 +295,6 @@ export default function Home() {
     }, 2000);
   };
 
-  const handleRemoveStock = (symbol: string) => {
-    setStocks(stocks.filter((stock) => stock.symbol !== symbol));
-    setPortfolio(portfolio.filter((stock) => stock.symbol !== symbol));
-  };
-
-  const handleEditStock = (symbol: string) => {
-    // If already editing this stock, toggle it closed
-    if (editingStock === symbol) {
-      setEditingStock(null);
-      setEditForm({ price: 0, quantity: 0 });
-      return;
-    }
-
-    // Otherwise open the edit form and populate values
-    const stock = stocks.find((s) => s.symbol === symbol);
-    if (stock) {
-      setEditingStock(symbol);
-      setEditForm({
-        price: stock.price,
-        quantity: stock.quantity,
-      });
-    }
-  };
-
-  const handleSaveEdit = () => {
-    if (editingStock) {
-      setStocks(
-        stocks.map((stock) =>
-          stock.symbol === editingStock ? { ...stock, ...editForm } : stock
-        )
-      );
-      setEditingStock(null);
-      setEditForm({ price: 0, quantity: 0 });
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingStock(null);
-    setEditForm({ price: 0, quantity: 0 });
-  };
-
   return (
     <div className="flex flex-col min-h-screen w-full bg-gray-900 text-white">
       {/* Header */}
@@ -409,8 +309,7 @@ export default function Home() {
             </h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Changed from gap-4 */}
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 rounded-lg">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-gray-300">AI Active</span>
@@ -439,8 +338,7 @@ export default function Home() {
         {/* Left Sidebar: Input Controls */}
         <aside className="w-80 px-4 py-4 bg-gray-800 border-r border-gray-700 overflow-y-auto shadow-xl">
           {/* Portfolio Stocks Section */}
-          <section className="mb-2">
-            {/* Changed from mb-4 */}
+          <section className="mb-4">
             <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -483,51 +381,23 @@ export default function Home() {
                   {showAddForm && (
                     <div className="px-2 py-2 bg-gray-800 rounded-lg border border-gray-600 mb-2">
                       <div className="space-y-2">
-                        <div className="space-y-1 relative" ref={dropdownRef}>
+                        <div className="space-y-1">
                           <label className="block text-xs font-medium text-gray-300">
                             Stock Symbol
                           </label>
                           <input
                             type="text"
-                            placeholder="Search stocks (e.g., HSBC or 0005.HK)"
+                            placeholder="Enter symbol (e.g., 0001.HK)"
                             className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            value={symbolQuery}
+                            value={symbolQuery || newStock.symbol}
                             onChange={(e) => {
                               setSymbolQuery(e.target.value);
-                            }}
-                            onFocus={() => {
-                              if (filteredStocks.length > 0) {
-                                setShowDropdown(true);
-                              }
+                              setNewStock({
+                                ...newStock,
+                                symbol: e.target.value.toUpperCase(),
+                              });
                             }}
                           />
-
-                          {/* Dropdown */}
-                          {showDropdown && filteredStocks.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 bg-gray-700 border border-gray-600 rounded-lg mt-1 max-h-48 overflow-y-auto z-50 shadow-lg">
-                              {filteredStocks.map((symbol) => (
-                                <div
-                                  key={symbol}
-                                  className="px-3 py-2 hover:bg-gray-600 cursor-pointer border-b border-gray-600 last:border-b-0"
-                                  onClick={() => {
-                                    setNewStock({
-                                      ...newStock,
-                                      symbol: symbol,
-                                    });
-                                    setSymbolQuery(symbol);
-                                    setShowDropdown(false);
-                                  }}
-                                >
-                                  <div className="text-sm font-medium text-white">
-                                    {symbol}
-                                  </div>
-                                  <div className="text-xs text-gray-300">
-                                    {COMPANY_NAMES[symbol]}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
@@ -570,8 +440,7 @@ export default function Home() {
                           onClick={() => {
                             const e: any = {};
                             if (!newStock.symbol)
-                              e.symbol =
-                                "Please select a stock from the dropdown";
+                              e.symbol = "Symbol is required";
                             if (newStock.price <= 0)
                               e.price = "Price must be > 0";
                             if (newStock.quantity <= 0)
@@ -586,7 +455,6 @@ export default function Home() {
                               });
                               setSymbolQuery("");
                               setShowAddForm(false);
-                              setShowDropdown(false);
                             }
                           }}
                           className="w-full mt-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200"
@@ -611,141 +479,24 @@ export default function Home() {
                             {COMPANY_NAMES[stock.symbol] ?? "Unknown"}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-right">
-                            <div className="text-sm text-white">
-                              $
-                              {stock.livePrice?.toFixed(2) ||
-                                stock.price.toFixed(2)}
-                            </div>
-                            <div
-                              className={`text-xs ${
-                                stock.percentageChange &&
-                                stock.percentageChange >= 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
-                            >
-                              {stock.percentageChange?.toFixed(2) || "0.00"}%
-                            </div>
+                        <div className="text-right">
+                          <div className="text-sm text-white">
+                            $
+                            {stock.livePrice?.toFixed(2) ||
+                              stock.price.toFixed(2)}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleEditStock(stock.symbol)}
-                              className="text-gray-400 hover:text-blue-400 p-1 rounded transition-colors"
-                              title="Edit stock"
-                            >
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                {editingStock === stock.symbol ? (
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 15l7-7 7 7"
-                                  />
-                                ) : (
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                )}
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleRemoveStock(stock.symbol)}
-                              className="text-gray-400 hover:text-red-400 p-1 rounded transition-colors"
-                              title="Remove stock"
-                            >
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
+                          <div
+                            className={`text-xs ${
+                              stock.percentageChange &&
+                              stock.percentageChange >= 0
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }`}
+                          >
+                            {stock.percentageChange?.toFixed(2) || "0.00"}%
                           </div>
                         </div>
                       </div>
-
-                      {/* Edit Form */}
-                      {editingStock === stock.symbol && (
-                        <div className="mt-3 pt-3 border-t border-gray-600">
-                          <div className="grid grid-cols-2 gap-2 mb-2">
-                            <div>
-                              <label className="block text-xs text-gray-300 mb-1">
-                                Price
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editForm.price}
-                                onChange={(e) => {
-                                  const newPrice =
-                                    parseFloat(e.target.value) || 0;
-                                  setEditForm({
-                                    ...editForm,
-                                    price: newPrice,
-                                  });
-                                  // Auto-save changes
-                                  if (editingStock) {
-                                    setStocks(
-                                      stocks.map((stock) =>
-                                        stock.symbol === editingStock
-                                          ? { ...stock, price: newPrice }
-                                          : stock
-                                      )
-                                    );
-                                  }
-                                }}
-                                className="w-full px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-300 mb-1">
-                                Quantity
-                              </label>
-                              <input
-                                type="number"
-                                step="1"
-                                value={editForm.quantity}
-                                onChange={(e) => {
-                                  const newQuantity =
-                                    parseInt(e.target.value) || 0;
-                                  setEditForm({
-                                    ...editForm,
-                                    quantity: newQuantity,
-                                  });
-                                  // Auto-save changes
-                                  if (editingStock) {
-                                    setStocks(
-                                      stocks.map((stock) =>
-                                        stock.symbol === editingStock
-                                          ? { ...stock, quantity: newQuantity }
-                                          : stock
-                                      )
-                                    );
-                                  }
-                                }}
-                                className="w-full px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-xs"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -754,8 +505,7 @@ export default function Home() {
           </section>
 
           {/* Risk Tolerance */}
-          <section className="mb-2">
-            {/* Changed from mb-4 */}
+          <section className="mb-4">
             <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                 <svg
@@ -786,8 +536,7 @@ export default function Home() {
           </section>
 
           {/* Scenario Analysis */}
-          <section className="mb-2">
-            {/* Changed from mb-4 */}
+          <section className="mb-4">
             <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                 <svg
@@ -818,8 +567,7 @@ export default function Home() {
           </section>
 
           {/* Investment Horizon */}
-          <section className="mb-2">
-            {/* Changed from mb-4 */}
+          <section className="mb-4">
             <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                 <svg
@@ -912,11 +660,9 @@ export default function Home() {
         {/* Main Content Area - AI Financial Dashboard */}
         <div className="flex-1 p-6 bg-gray-900 overflow-auto">
           {/* Dashboard Grid Layout */}
-          <div className="grid grid-cols-12 gap-3 h-full">
-            {/* Changed from gap-6 */}
+          <div className="grid grid-cols-12 gap-6 h-full">
             {/* Top Row - Key Metrics */}
-            <div className="col-span-12 grid grid-cols-4 gap-2 mb-3">
-              {/* Changed from gap-4 mb-6 */}
+            <div className="col-span-12 grid grid-cols-4 gap-4 mb-6">
               {/* Portfolio Value */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <div className="flex items-center justify-between">
@@ -1040,12 +786,10 @@ export default function Home() {
             </div>
 
             {/* Main Charts Row */}
-            <div className="col-span-8 grid grid-rows-2 gap-3">
-              {/* Changed from gap-6 */}
+            <div className="col-span-8 grid grid-rows-2 gap-6">
               {/* Portfolio Performance Chart */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-2">
-                  {/* Changed from mb-4 */}
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">
                     Portfolio Performance
                   </h3>
@@ -1061,8 +805,7 @@ export default function Home() {
 
               {/* AI Recommendations */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+                <h3 className="text-lg font-semibold text-white mb-4">
                   AI Recommendations
                 </h3>
                 <div className="space-y-3">
@@ -1107,12 +850,10 @@ export default function Home() {
             </div>
 
             {/* Right Column - Analytics */}
-            <div className="col-span-4 grid grid-rows-3 gap-3">
-              {/* Changed from gap-6 */}
+            <div className="col-span-4 grid grid-rows-3 gap-6">
               {/* Asset Allocation */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Asset Allocation
                 </h3>
                 <div className="h-32">
@@ -1130,7 +871,14 @@ export default function Home() {
                       <div className="w-3 h-3 bg-blue-500 rounded"></div>
                       <span className="text-gray-300">Stocks</span>
                     </div>
-                    <span className="text-white">90%</span>
+                    <span className="text-white">65%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded"></div>
+                      <span className="text-gray-300">Bonds</span>
+                    </div>
+                    <span className="text-white">25%</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
@@ -1144,8 +892,7 @@ export default function Home() {
 
               {/* Risk Analytics */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Risk Analytics
                 </h3>
                 <div className="space-y-3">
@@ -1188,12 +935,10 @@ export default function Home() {
 
               {/* Market Sentiment */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+                <h3 className="text-lg font-semibold text-white mb-4">
                   AI Market Sentiment
                 </h3>
-                <div className="text-center mb-2">
-                  {/* Changed from mb-4 */}
+                <div className="text-center mb-4">
                   <div className="text-3xl font-bold text-green-400">
                     Bullish
                   </div>
@@ -1217,12 +962,10 @@ export default function Home() {
             </div>
 
             {/* Bottom Row - Detailed Analytics */}
-            <div className="col-span-12 grid grid-cols-2 gap-3">
-              {/* Changed from gap-6 */}
+            <div className="col-span-12 grid grid-cols-2 gap-6">
               {/* Efficient Frontier */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Efficient Frontier Analysis
                 </h3>
                 <div className="h-64">
@@ -1286,8 +1029,7 @@ export default function Home() {
 
               {/* Sector Exposure */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Sector Exposure
                 </h3>
                 <div className="h-64">

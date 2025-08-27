@@ -43,9 +43,11 @@ class StockWebSocketClient {
 
         this.ws.onmessage = (event) => {
           try {
+            console.log("WebSocket message received:", event.data);
             const message: StockUpdateMessage = JSON.parse(event.data);
 
             if (message.type === "STOCK_UPDATE") {
+              console.log("Processing STOCK_UPDATE:", message.data);
               this.handleStockUpdate(message.data);
             }
           } catch (error) {
@@ -69,14 +71,17 @@ class StockWebSocketClient {
   }
 
   private handleStockUpdate(data: StockData): void {
+    console.log("handleStockUpdate called with:", data);
     const callback = this.subscribers.get(data.symbol);
     if (callback) {
+      console.log(`Calling callback for ${data.symbol}`);
       callback(data);
     }
 
     // Also call the global callback if exists
     const globalCallback = this.subscribers.get("*");
     if (globalCallback) {
+      console.log(`Calling global callback for ${data.symbol}`);
       globalCallback(data);
     }
   }

@@ -12,7 +12,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { useTheme } from "next-themes";
 import { getStockWebSocketClient, StockData } from "../services/stockWebSocket";
 
 // Register Chart.js components
@@ -31,72 +30,105 @@ interface Stock {
   price: number;
   quantity: number;
   livePrice?: number;
-  priceChange?: number;
   percentageChange?: number;
-  lastUpdated?: string;
 }
 
-const defaultStocks: Stock[] = [
-  { symbol: "0001.HK", price: 50.2, quantity: 0 },
-  { symbol: "0002.HK", price: 65.3, quantity: 0 },
-  { symbol: "0003.HK", price: 7.1, quantity: 0 },
-];
-
-const COMPANY_NAMES: Record<string, string> = {
-  "0001.HK": "CK Hutchison",
-  "0002.HK": "CLP Holdings",
-  "0003.HK": "Hong Kong and China Gas",
-  "0004.HK": "WH Group",
-  "0388.HK": "Kingfisher",
-  "0700.HK": "Tencent",
-};
-
-// Small sample list for the typeahead dropdown — extend as needed
 const AVAILABLE_SYMBOLS = [
   "0001.HK",
   "0002.HK",
   "0003.HK",
-  "0004.HK",
+  "0005.HK",
+  "0006.HK",
+  "0011.HK",
+  "0012.HK",
+  "0016.HK",
+  "0017.HK",
+  "0019.HK",
+  "0027.HK",
+  "0066.HK",
+  "0081.HK",
+  "0083.HK",
+  "0101.HK",
+  "0175.HK",
+  "0267.HK",
+  "0288.HK",
+  "0386.HK",
   "0388.HK",
   "0700.HK",
-  "0005.HK",
-  "0011.HK",
-  "3988.HK",
+  "0883.HK",
+  "0939.HK",
+  "0941.HK",
+  "0992.HK",
+  "1038.HK",
+  "1044.HK",
+  "1088.HK",
+  "1093.HK",
+  "1109.HK",
+  "1113.HK",
+  "1177.HK",
   "1299.HK",
+  "1398.HK",
+  "1810.HK",
+  "1928.HK",
+  "1997.HK",
+  "2007.HK",
+  "2018.HK",
+  "2020.HK",
+  "2269.HK",
+  "2313.HK",
+  "2318.HK",
+  "2319.HK",
+  "2382.HK",
+  "2388.HK",
+  "2628.HK",
+  "3328.HK",
+  "3690.HK",
+  "3988.HK",
+  "6862.HK",
+  "9618.HK",
+  "9888.HK",
+  "9988.HK",
+];
+
+const COMPANY_NAMES: { [key: string]: string } = {
+  "0001.HK": "CKH Holdings",
+  "0002.HK": "CLP Holdings",
+  "0003.HK": "Hong Kong and China Gas",
+  "0005.HK": "HSBC Holdings",
+  "0006.HK": "Power Assets",
+  "0700.HK": "Tencent",
+  "0883.HK": "CNOOC",
+  "0939.HK": "China Construction Bank",
+  "0941.HK": "China Mobile",
+  "1299.HK": "AIA Group",
+  "1398.HK": "Industrial and Commercial Bank of China",
+  "2318.HK": "Ping An Insurance",
+  "3988.HK": "Bank of China",
+  "9988.HK": "Alibaba Group",
+};
+
+const defaultStocks: Stock[] = [
+  { symbol: "0700.HK", price: 350.0, quantity: 100 },
+  { symbol: "0005.HK", price: 65.5, quantity: 200 },
+  { symbol: "1299.HK", price: 85.2, quantity: 150 },
 ];
 
 const mockEfficientFrontierData = {
-  labels: [
-    "Portfolio 1",
-    "Portfolio 2",
-    "Portfolio 3",
-    "Portfolio 4",
-    "Portfolio 5",
-  ],
   datasets: [
     {
       label: "Efficient Frontier",
       data: [
-        { x: 5, y: 8 },
-        { x: 7, y: 10 },
-        { x: 10, y: 12 },
-        { x: 12, y: 13 },
-        { x: 15, y: 14 },
+        { x: 10, y: 8 },
+        { x: 12, y: 10 },
+        { x: 15, y: 12 },
+        { x: 18, y: 14 },
+        { x: 22, y: 16 },
+        { x: 25, y: 17 },
+        { x: 30, y: 18 },
       ],
-      borderColor: "rgb(75, 192, 192)",
-      backgroundColor: "rgba(75, 192, 192, 0.5)",
-    },
-  ],
-};
-
-const mockGrowthData = {
-  labels: ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"],
-  datasets: [
-    {
-      label: "Projected Growth",
-      data: [100, 110, 125, 140, 160],
-      borderColor: "rgb(53, 162, 235)",
-      backgroundColor: "rgba(53, 162, 235, 0.5)",
+      backgroundColor: "rgba(59, 130, 246, 0.6)",
+      borderColor: "rgba(59, 130, 246, 1)",
+      pointRadius: 6,
     },
   ],
 };
@@ -105,7 +137,6 @@ const mockScenarios = ["Base", "Optimistic", "Pessimistic", "Sentiment-Driven"];
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
 
   // Once mounted on client, now we can show the UI
   useEffect(() => {
@@ -114,11 +145,13 @@ export default function Dashboard() {
 
   const [stocks, setStocks] = useState<Stock[]>(defaultStocks);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
   const [portfolio, setPortfolio] = useState<
     { symbol: string; weight: number }[]
   >([]);
   const [wsConnected, setWsConnected] = useState(false);
+  const [expandedStocks, setExpandedStocks] = useState<{
+    [key: number]: boolean;
+  }>({});
   const [riskTolerance, setRiskTolerance] = useState(5); // 1-10 scale
   const [horizon, setHorizon] = useState(5); // years
   const [customHorizonValue, setCustomHorizonValue] = useState<number>(1);
@@ -129,104 +162,130 @@ export default function Dashboard() {
     price: 0,
     quantity: 0,
   });
-  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(
-    null
-  );
-  const [symbolQuery, setSymbolQuery] = useState("");
-  const [filteredSymbols, setFilteredSymbols] =
-    useState<string[]>(AVAILABLE_SYMBOLS);
+  const [symbolQuery, setSymbolQuery] = useState<string>("");
+  const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
   const [errors, setErrors] = useState<{
     symbol?: string;
     price?: string;
     quantity?: string;
   }>({});
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(
+    null
+  );
+
+  // Stock data management - Initialize connection once
+  useEffect(() => {
+    const client = getStockWebSocketClient();
+
+    const initializeConnection = async () => {
+      try {
+        await client.connect();
+        setWsConnected(true);
+        console.log("WebSocket connected successfully");
+      } catch (error) {
+        console.error("Failed to connect to WebSocket:", error);
+        setWsConnected(false);
+      }
+    };
+
+    // Initialize connection only once
+    initializeConnection();
+
+    // Monitor connection status with less frequent checks
+    const connectionMonitor = setInterval(() => {
+      const isConnected = client.isConnected();
+      setWsConnected(isConnected);
+    }, 2000);
+
+    // Cleanup function - don't disconnect, just stop monitoring
+    return () => {
+      clearInterval(connectionMonitor);
+    };
+  }, []); // Run only once on mount
+
+  // Handle stock subscriptions separately - setup once when connected
+  useEffect(() => {
+    const client = getStockWebSocketClient();
+
+    const handleMessage = (data: StockData) => {
+      console.log("Received stock data:", data);
+      setStocks((prevStocks) =>
+        prevStocks.map((stock) => {
+          if (stock.symbol === data.symbol) {
+            console.log(
+              `Updating ${data.symbol}: ${stock.livePrice || stock.price} -> ${
+                data.price
+              } (${data.percentageChange.toFixed(2)}%)`
+            );
+
+            return {
+              ...stock,
+              livePrice: data.price,
+              percentageChange: data.percentageChange, // Use backend's calculation
+            };
+          }
+          return stock;
+        })
+      );
+    };
+
+    // Only subscribe when WebSocket is connected (not when stocks update!)
+    if (wsConnected) {
+      // Use the global callback approach to avoid multiple individual subscriptions
+      const unsubscribeGlobal = client.subscribeToAll(handleMessage);
+
+      // Get initial symbols from defaultStocks constant instead of state
+      const symbols = defaultStocks.map((stock) => stock.symbol);
+      client.subscribeToSymbols(symbols);
+
+      console.log("Subscribed to all stocks:", symbols);
+
+      return () => {
+        unsubscribeGlobal();
+      };
+    }
+  }, [wsConnected]); // Only re-run when connection status changes, NOT when stocks change
 
   const handleAddStock = (symbol: string, weight: number) => {
-    setPortfolio([...portfolio, { symbol, weight }]);
+    setPortfolio((prev) => {
+      const existing = prev.find((p) => p.symbol === symbol);
+      if (existing) {
+        return prev.map((p) => (p.symbol === symbol ? { ...p, weight } : p));
+      }
+      return [...prev, { symbol, weight }];
+    });
   };
 
   const handleOptimize = () => {
-    // Mock optimization - in production, call backend API
-    console.log("Optimizing portfolio:", {
-      portfolio,
-      riskTolerance,
-      horizon,
-
-      scenario,
-    });
-    // Update charts with real data from backend
+    // Mock optimization logic - in reality, this would call an optimization algorithm
+    const totalValue = stocks.reduce(
+      (sum, stock) => sum + stock.price * stock.quantity,
+      0
+    );
+    const optimizedWeights = stocks.map((stock) => ({
+      symbol: stock.symbol,
+      weight: ((stock.price * stock.quantity) / totalValue) * 100,
+    }));
+    setPortfolio(optimizedWeights);
   };
 
-  // persist stocks to localStorage
+  // Mock data for charts
+  const portfolioPerformanceData = {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    datasets: [
+      {
+        label: "Portfolio Value",
+        data: [10000, 11200, 10800, 12500, 13200, 14100],
+        borderColor: "rgb(59, 130, 246)",
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        tension: 0.4,
+      },
+    ],
+  };
+
+  // Filter symbols based on query
   useEffect(() => {
-    try {
-      localStorage.setItem("stocks", JSON.stringify(stocks));
-    } catch (e) {
-      /* ignore */
-    }
-  }, [stocks]);
-
-  // WebSocket connection for live stock data
-  useEffect(() => {
-    const wsClient = getStockWebSocketClient();
-
-    // Connect to WebSocket
-    wsClient
-      .connect()
-      .then(() => {
-        setWsConnected(true);
-        console.log("Connected to stock WebSocket service");
-
-        // Subscribe to all stocks in our portfolio
-        const symbols = stocks.map((stock) => stock.symbol);
-        if (symbols.length > 0) {
-          wsClient.subscribeToSymbols(symbols);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to connect to WebSocket:", error);
-        setWsConnected(false);
-      });
-
-    // Subscribe to all stock updates
-    const unsubscribe = wsClient.subscribeToAll((data: StockData) => {
-      setStocks((prevStocks) =>
-        prevStocks.map((stock) =>
-          stock.symbol === data.symbol
-            ? {
-                ...stock,
-                livePrice: data.price,
-                priceChange: data.priceChange,
-                percentageChange: data.percentageChange,
-                lastUpdated: data.timestamp,
-              }
-            : stock
-        )
-      );
-    });
-
-    // Cleanup on unmount
-    return () => {
-      unsubscribe();
-      wsClient.disconnect();
-      setWsConnected(false);
-    };
-  }, []);
-
-  // Update WebSocket subscriptions when stocks change
-  useEffect(() => {
-    if (wsConnected) {
-      const wsClient = getStockWebSocketClient();
-      const symbols = stocks.map((stock) => stock.symbol);
-      if (symbols.length > 0) {
-        wsClient.subscribeToSymbols(symbols);
-      }
-    }
-  }, [stocks, wsConnected]);
-
-  // simple typeahead filtering for available symbols
-  useEffect(() => {
-    const q = (symbolQuery || "").trim().toUpperCase();
+    const q = symbolQuery.toUpperCase();
     if (!q) setFilteredSymbols(AVAILABLE_SYMBOLS.slice(0, 10));
     else
       setFilteredSymbols(
@@ -240,208 +299,302 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-gray-900 to-gray-800 text-white transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white p-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">
-          Intelligent AI-Powered Financial Advisor
-        </h1>
-        <div className="flex items-center gap-4">
+      <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 text-white p-2 lg:p-3 flex items-center justify-between shadow-sm sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xs">AI</span>
+            </div>
+            <h1 className="text-base lg:text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Intelligent Financial Advisor
+            </h1>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 lg:gap-4">
           {/* WebSocket Connection Status */}
           <div
-            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs ${
+            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
               wsConnected
-                ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+                ? "bg-green-900/40 text-green-400 border border-green-700"
+                : "bg-red-900/40 text-red-400 border border-red-700"
             }`}
           >
             <div
-              className={`w-2 h-2 rounded-full ${
-                wsConnected ? "bg-green-500" : "bg-red-500"
+              className={`w-2 h-2 rounded-full animate-pulse ${
+                wsConnected ? "bg-green-400" : "bg-red-400"
               }`}
             ></div>
-            {wsConnected ? "Live Data Connected" : "Live Data Disconnected"}
+            <span className="hidden md:inline">
+              {wsConnected ? "Live Data Connected" : "Live Data Disconnected"}
+            </span>
+            <span className="md:hidden">
+              {wsConnected ? "Live" : "Offline"}
+            </span>
           </div>
-
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-            aria-label="Toggle theme"
-          >
-            {theme === "dark" ? "🌞" : "🌙"}
-          </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar: Inputs */}
-        {showSidebar && (
-          <aside className="relative w-full md:w-1/3 lg:w-1/4 p-4 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-            {/* small circular collapse toggle positioned on the panel's right edge */}
-            <button
-              onClick={() => setShowSidebar(false)}
-              title="Collapse panel"
-              aria-label="Collapse panel"
-              className="absolute right-0 top-6 transform translate-x-1/2 -translate-y-0 z-40 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 shadow"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 text-gray-900 dark:text-white"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-
-            {/* Portfolio Stocks */}
-            <section className="mb-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+      <main className="flex flex-1 relative">
+        {/* Left Sidebar: Enhanced Inputs - Always Visible */}
+        <aside className="w-full lg:w-72 xl:w-80 px-4 py-4 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700 overflow-y-auto shadow-xl lg:shadow-none">
+          {/* Portfolio Stocks Section with Border */}
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-3 w-3 text-gray-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                   Portfolio Stocks
                 </h3>
                 <button
                   onClick={() => setShowAddForm((s) => !s)}
-                  className="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
+                    showAddForm
+                      ? "bg-gray-700 text-gray-300 border border-gray-600"
+                      : "bg-gray-700 text-gray-300 border border-gray-600"
+                  }`}
                 >
-                  {showAddForm ? "Hide" : "Add New"}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-3 w-3 transition-transform duration-200 ${
+                      showAddForm ? "rotate-45" : ""
+                    }`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="text-xs">
+                    {showAddForm ? "Cancel" : "Add Stock"}
+                  </span>
                 </button>
               </div>
 
-              {/* Collapsible Add Form */}
-              {showAddForm && (
-                <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 mt-2 transition-all duration-200 ease-out">
-                  <div className="space-y-2">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Symbol (type or pick)"
-                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                        value={symbolQuery || newStock.symbol}
-                        onChange={(e) => {
-                          setSymbolQuery(e.target.value);
-                          setNewStock({
-                            ...newStock,
-                            symbol: e.target.value.toUpperCase(),
-                          });
-                        }}
-                      />
-                      {/* typeahead list */}
-                      {symbolQuery && filteredSymbols.length > 0 && (
-                        <div className="border border-gray-200 bg-white rounded mt-1 max-h-40 overflow-y-auto">
-                          {filteredSymbols.map((s) => (
-                            <div
-                              key={s}
-                              className="px-2 py-1 hover:bg-gray-100 cursor-pointer text-sm"
-                              onClick={() => {
-                                setNewStock({ ...newStock, symbol: s });
-                                setSymbolQuery(s);
-                                setFilteredSymbols([]);
+              {/* Enhanced Scrollable Stock List */}
+              <div className="relative">
+                <div className="space-y-1 max-h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300">
+                  {/* Enhanced Collapsible Add Form */}
+                  {showAddForm && (
+                    <div className="px-2 py-2 bg-gray-800/50 rounded-lg border border-gray-600/50 mb-2 transition-all duration-300">
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-gray-300">
+                            Stock Symbol
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Enter symbol (e.g., 0001.HK)"
+                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                              value={symbolQuery || newStock.symbol}
+                              onChange={(e) => {
+                                setSymbolQuery(e.target.value);
+                                setNewStock({
+                                  ...newStock,
+                                  symbol: e.target.value.toUpperCase(),
+                                });
                               }}
-                            >
-                              {s}
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3 w-3 text-gray-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
                             </div>
-                          ))}
+                          </div>
+                          {/* Enhanced typeahead list */}
+                          {symbolQuery && filteredSymbols.length > 0 && (
+                            <div className="border border-gray-600 bg-gray-700 rounded-xl mt-1 max-h-40 overflow-y-auto shadow-lg z-10">
+                              {filteredSymbols.map((s) => (
+                                <div
+                                  key={s}
+                                  className="px-4 py-3 hover:bg-gray-600 cursor-pointer text-sm transition-colors duration-150 border-b border-gray-600 last:border-b-0"
+                                  onClick={() => {
+                                    setNewStock({ ...newStock, symbol: s });
+                                    setSymbolQuery(s);
+                                    setFilteredSymbols([]);
+                                  }}
+                                >
+                                  <div className="font-medium text-white">
+                                    {s}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {COMPANY_NAMES[s] || "Unknown Company"}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {errors.symbol && (
+                            <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                              <svg
+                                className="h-3 w-3"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              {errors.symbol}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {errors.symbol && (
-                        <div className="text-xs text-red-600 mt-1">
-                          {errors.symbol}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-300">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="Enter quantity"
+                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                              value={newStock.quantity || ""}
+                              onChange={(e) =>
+                                setNewStock({
+                                  ...newStock,
+                                  quantity: parseInt(e.target.value) || 0,
+                                })
+                              }
+                            />
+                            {errors.quantity && (
+                              <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                                <svg
+                                  className="h-3 w-3"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                {errors.quantity}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-300">
+                              Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Enter price"
+                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                              value={newStock.price || ""}
+                              onChange={(e) =>
+                                setNewStock({
+                                  ...newStock,
+                                  price: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                            />
+                            {errors.price && (
+                              <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                                <svg
+                                  className="h-3 w-3"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                {errors.price}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+
+                        <button
+                          onClick={() => {
+                            // validation
+                            const e: typeof errors = {};
+                            if (!newStock.symbol)
+                              e.symbol = "Symbol is required";
+                            if (newStock.price <= 0)
+                              e.price = "Price must be > 0";
+                            if (newStock.quantity <= 0)
+                              e.quantity = "Quantity must be > 0";
+                            setErrors(e);
+                            if (Object.keys(e).length === 0) {
+                              setStocks([...stocks, newStock]);
+                              setNewStock({
+                                symbol: "",
+                                price: 0,
+                                quantity: 0,
+                              });
+                              setSymbolQuery("");
+                              setShowAddForm(false);
+                            }
+                          }}
+                          className="w-full mt-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md border border-gray-600"
+                        >
+                          Add Stock to Portfolio
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <input
-                        type="number"
-                        placeholder="Quantity"
-                        className="w-full p-2 border border-gray-300 rounded text-gray-900 placeholder-gray-500"
-                        value={newStock.quantity || ""}
-                        onChange={(e) =>
-                          setNewStock({
-                            ...newStock,
-                            quantity: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
-                      {errors.quantity && (
-                        <div className="text-xs text-red-600 mt-1">
-                          {errors.quantity}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        placeholder="Price"
-                        className="flex-1 p-2 border border-gray-300 rounded"
-                        value={newStock.price || ""}
-                        onChange={(e) =>
-                          setNewStock({
-                            ...newStock,
-                            price: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                      {errors.price && (
-                        <div className="text-xs text-red-600 mt-1">
-                          {errors.price}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => {
-                          // validation
-                          const e: typeof errors = {};
-                          if (!newStock.symbol) e.symbol = "Symbol is required";
-                          if (newStock.price <= 0)
-                            e.price = "Price must be > 0";
-                          if (newStock.quantity <= 0)
-                            e.quantity = "Quantity must be > 0";
-                          setErrors(e);
-                          if (Object.keys(e).length === 0) {
-                            setStocks([...stocks, newStock]);
-                            setNewStock({
-                              symbol: "",
-                              price: 0,
-                              quantity: 0,
-                            });
-                            setSymbolQuery("");
-                            setShowAddForm(false);
-                          }
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  )}
+
+                  {stocks.map((stock, index) => {
+                    const isExpanded = expandedStocks[index] || false;
+
+                    const toggleExpansion = () => {
+                      setExpandedStocks((prev) => ({
+                        ...prev,
+                        [index]: !prev[index],
+                      }));
+                    };
+
+                    return (
+                      <div
+                        key={`${stock.symbol}-${index}`}
+                        className="bg-gray-700 border border-gray-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                       >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                        {/* Compact Stock Display */}
+                        <div className="px-3 py-2 flex items-center justify-between">
+                          {/* Left Side - Stock Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-white text-sm">
+                              {stock.symbol}
+                            </div>
+                            <div className="text-xs text-gray-300 truncate">
+                              {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
+                            </div>
+                          </div>
 
-              {/* Scrollable Stock List */}
-              <div className="overflow-y-auto max-h-64 mt-2 space-y-2 pr-2">
-                {stocks.map((stock, index) => (
-                  <div
-                    key={`${stock.symbol}-${index}`}
-                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {stock.symbol}
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {COMPANY_NAMES[stock.symbol] ?? "Unknown Company"}
-                        </div>
-
-                        {/* Live Price Section */}
-                        <div className="mt-2 space-y-1">
-                          <div className="flex items-center gap-3">
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {/* Center - Price and Change */}
+                          <div className="text-right mr-3">
+                            <div className="font-semibold text-white text-sm">
                               $
                               {stock.livePrice
                                 ? stock.livePrice.toFixed(2)
@@ -449,262 +602,347 @@ export default function Dashboard() {
                             </div>
                             {stock.percentageChange !== undefined && (
                               <div
-                                className={`flex items-center text-sm font-medium ${
+                                className={`text-xs font-medium ${
                                   stock.percentageChange >= 0
-                                    ? "text-green-600 dark:text-green-400"
-                                    : "text-red-600 dark:text-red-400"
+                                    ? "text-gray-300"
+                                    : "text-gray-400"
                                 }`}
                               >
-                                <span className="mr-1">
-                                  {stock.percentageChange >= 0 ? "↗" : "↘"}
-                                </span>
-                                {stock.priceChange !== undefined && (
-                                  <span>
-                                    {stock.priceChange >= 0 ? "+" : ""}$
-                                    {stock.priceChange.toFixed(2)}
-                                  </span>
-                                )}
-                                <span className="ml-1">
-                                  ({stock.percentageChange >= 0 ? "+" : ""}
-                                  {stock.percentageChange.toFixed(2)}%)
+                                <span>
+                                  {stock.percentageChange >= 0 ? "+" : ""}
+                                  {stock.percentageChange.toFixed(2)}%
                                 </span>
                               </div>
                             )}
                           </div>
-                          {stock.lastUpdated && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              Last updated:{" "}
-                              {new Date(stock.lastUpdated).toLocaleTimeString()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setConfirmDeleteIndex(index)}
-                        className="p-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                        aria-label={`Remove ${stock.symbol}`}
-                      >
-                        {/* simple X icon */}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    {/* labels for inputs */}
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-2 gap-4">
-                      <div className="w-28">Price</div>
-                      <div className="w-20">Quantity</div>
-                      <div className="w-24">Weight</div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Price"
-                        className="w-28 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                        value={stock.price}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          const updated = [...stocks];
-                          updated[index] = { ...updated[index], price: val };
-                          setStocks(updated);
-                        }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Qty"
-                        className="w-20 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                        value={stock.quantity}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          const updated = [...stocks];
-                          updated[index] = {
-                            ...updated[index],
-                            quantity: val,
-                          };
-                          setStocks(updated);
-                        }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Weight %"
-                        className="w-24 p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-                        onChange={(e) =>
-                          handleAddStock(
-                            stock.symbol,
-                            parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
 
-            {/* Delete confirmation modal (simple inline) */}
-            {confirmDeleteIndex !== null && (
-              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-md w-96">
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Confirm removal
-                  </h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                    Are you sure you want to remove{" "}
-                    {stocks[confirmDeleteIndex].symbol}?
-                  </p>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setConfirmDeleteIndex(null)}
-                      className="px-3 py-1 border rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        const idx = confirmDeleteIndex;
-                        if (idx === null) return;
-                        const newStocks = [...stocks];
-                        const removed = newStocks.splice(idx, 1);
-                        setStocks(newStocks);
-                        setPortfolio(
-                          portfolio.filter(
-                            (p) => p.symbol !== removed[0].symbol
-                          )
-                        );
-                        setConfirmDeleteIndex(null);
-                      }}
-                      className="px-3 py-1 bg-red-600 text-white rounded"
-                    >
-                      Remove
-                    </button>
-                  </div>
+                          {/* Right Side - Controls */}
+                          <div className="flex items-center gap-1">
+                            {/* Expand/Collapse Toggle */}
+                            <button
+                              onClick={toggleExpansion}
+                              className="p-1.5 text-gray-400 hover:text-white transition-colors rounded"
+                              aria-label={`${
+                                isExpanded ? "Hide" : "Show"
+                              } input fields`}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className={`h-4 w-4 transition-transform duration-200 ${
+                                  isExpanded ? "rotate-180" : ""
+                                }`}
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => setConfirmDeleteIndex(index)}
+                              className="p-1.5 text-red-600 hover:text-red-400 transition-colors rounded"
+                              aria-label={`Remove ${stock.symbol}`}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Collapsible Input Fields */}
+                        {isExpanded && (
+                          <div className="px-3 pb-3 border-t border-gray-600/50">
+                            <div className="pt-3 grid grid-cols-3 gap-3">
+                              {/* Entry Price Input */}
+                              <div className="space-y-1">
+                                <label className="block text-xs font-medium text-gray-400">
+                                  Entry Price
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                                  value={stock.price}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const updated = [...stocks];
+                                    updated[index] = {
+                                      ...updated[index],
+                                      price: val,
+                                    };
+                                    setStocks(updated);
+                                  }}
+                                />
+                              </div>
+
+                              {/* Quantity Input */}
+                              <div className="space-y-1">
+                                <label className="block text-xs font-medium text-gray-400">
+                                  Quantity
+                                </label>
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                                  value={stock.quantity}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const updated = [...stocks];
+                                    updated[index] = {
+                                      ...updated[index],
+                                      quantity: val,
+                                    };
+                                    setStocks(updated);
+                                  }}
+                                />
+                              </div>
+
+                              {/* Weight Input */}
+                              <div className="space-y-1">
+                                <label className="block text-xs font-medium text-gray-400">
+                                  Weight (%)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  placeholder="0.0"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                                  value={
+                                    portfolio.find(
+                                      (p) => p.symbol === stock.symbol
+                                    )?.weight || ""
+                                  }
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const newPortfolio = portfolio.filter(
+                                      (p) => p.symbol !== stock.symbol
+                                    );
+                                    if (val > 0) {
+                                      newPortfolio.push({
+                                        symbol: stock.symbol,
+                                        weight: val,
+                                      });
+                                    }
+                                    setPortfolio(newPortfolio);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            </div>
+          </section>
 
-            {/* Risk Tolerance */}
-            <section className="mb-6">
-              <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
+          {/* Delete confirmation modal - centered */}
+          {confirmDeleteIndex !== null && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[60]">
+              <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl w-96 max-w-[90vw] border border-gray-600">
+                <h4 className="text-lg font-semibold text-white mb-3">
+                  Confirm Removal
+                </h4>
+                <p className="text-sm text-gray-700 mb-6">
+                  Are you sure you want to remove{" "}
+                  <span className="font-medium text-blue-600">
+                    {stocks[confirmDeleteIndex].symbol}
+                  </span>{" "}
+                  from your portfolio?
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setConfirmDeleteIndex(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const idx = confirmDeleteIndex;
+                      if (idx === null) return;
+                      const newStocks = [...stocks];
+                      const removed = newStocks.splice(idx, 1);
+                      setStocks(newStocks);
+                      setPortfolio(
+                        portfolio.filter((p) => p.symbol !== removed[0].symbol)
+                      );
+                      setConfirmDeleteIndex(null);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors duration-200"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Compact Risk Tolerance */}
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3 text-gray-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 Risk Tolerance
               </h3>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  value={riskTolerance}
-                  onChange={(e) => setRiskTolerance(parseInt(e.target.value))}
-                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg accent-black dark:accent-white"
-                />
-                <div className="w-8 text-center">{riskTolerance}</div>
-              </div>
-            </section>
-
-            {/* Investment Horizon */}
-            <section className="mb-6">
-              <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
-                Investment Horizon
-              </h3>
-              <div className="flex gap-2 flex-wrap mb-2">
-                {[1, 3, 5, 10].map((y) => (
-                  <button
-                    key={y}
-                    onClick={() => setHorizon(y)}
-                    className={`px-3 py-1 rounded ${
-                      horizon === y
-                        ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    } hover:bg-gray-200 dark:hover:bg-gray-600`}
-                  >
-                    {y}y
-                  </button>
-                ))}
-                <button
-                  onClick={() => setHorizon(0)}
-                  className={`px-3 py-1 rounded ${
-                    horizon === 0
-                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  } hover:bg-gray-200 dark:hover:bg-gray-600`}
-                >
-                  Custom
-                </button>
-              </div>
-              {horizon === 0 && (
-                <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-300">Low</span>
+                <div className="flex-1 relative">
                   <input
-                    type="number"
+                    type="range"
                     min={1}
-                    value={customHorizonValue}
-                    onChange={(e) =>
-                      setCustomHorizonValue(parseInt(e.target.value || "1"))
-                    }
-                    className="w-2/3 p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    max={10}
+                    value={riskTolerance}
+                    onChange={(e) => setRiskTolerance(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-gradient-to-r from-green-200 via-yellow-200 to-red-200 rounded-lg appearance-none cursor-pointer slider"
                   />
-                  <select
-                    value={horizonUnit}
-                    onChange={(e) => setHorizonUnit(e.target.value)}
-                    className="w-1/3 p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                  >
-                    <option value="minutes">Minutes</option>
-                    <option value="hours">Hours</option>
-                    <option value="daily">Daily</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                  </select>
                 </div>
-              )}
-            </section>
+                <span className="text-xs text-gray-300">High</span>
+                <div className="px-1.5 py-0.5 bg-gray-700 rounded-md border border-gray-600 text-xs font-medium text-gray-300">
+                  {riskTolerance}
+                </div>
+              </div>
+            </div>
+          </section>
 
-            {/* Assumptions removed (NLP not integrated) */}
-
-            {/* Scenario Toggles */}
-            <section className="mb-6">
-              <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
-                Scenario
+          {/* Compact Scenario Analysis */}
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3 text-gray-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Scenario Analysis
               </h3>
               <select
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
               >
                 {mockScenarios.map((sc) => (
-                  <option key={sc} value={sc} className="dark:bg-gray-700">
+                  <option key={sc} value={sc}>
                     {sc}
                   </option>
                 ))}
               </select>
-            </section>
+            </div>
+          </section>
 
-            {/* Optimize Button */}
-            <button
-              onClick={handleOptimize}
-              className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-2 rounded hover:bg-gray-800 dark:hover:bg-gray-100"
-            >
-              Optimize Portfolio
-            </button>
-          </aside>
-        )}
+          {/* Compact Investment Horizon */}
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3 text-gray-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Investment Horizon
+              </h3>
+              <div className="relative">
+                <div className="min-h-[5rem] max-h-[5rem] overflow-y-auto">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { value: 0.083, label: "1M" },
+                        { value: 0.25, label: "3M" },
+                        { value: 0.5, label: "6M" },
+                        { value: 1, label: "1Y" },
+                        { value: 3, label: "3Y" },
+                        { value: 5, label: "5Y" },
+                        { value: 10, label: "10Y" },
+                        { value: 0, label: "Custom" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setHorizon(option.value)}
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 border ${
+                            horizon === option.value
+                              ? "bg-gray-600 text-white border-gray-600"
+                              : "bg-gray-700 text-gray-300 border-gray-600 hover:border-gray-400"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    {horizon === 0 && (
+                      <div className="flex gap-1.5 mt-1.5">
+                        <input
+                          type="number"
+                          min={1}
+                          value={customHorizonValue}
+                          onChange={(e) =>
+                            setCustomHorizonValue(
+                              parseInt(e.target.value || "1")
+                            )
+                          }
+                          className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                        />
+                        <select
+                          value={horizonUnit}
+                          onChange={(e) => setHorizonUnit(e.target.value)}
+                          className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="minutes">Minutes</option>
+                          <option value="hours">Hours</option>
+                          <option value="daily">Daily</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
-        {/* persistent collapsed toggle (shown when sidebar hidden) */}
-        {!showSidebar && (
+          {/* Compact Optimize Button */}
           <button
-            onClick={() => setShowSidebar(true)}
-            aria-label="Open panel"
-            title="Open panel"
-            className="fixed left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 z-50 p-2 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-lg border border-gray-700 dark:border-gray-300"
-            style={{ width: 36, height: 36 }}
+            onClick={handleOptimize}
+            className="w-full py-2 px-3 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 border border-gray-600"
           >
-            {/* small chevron pointing right */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-4 w-4"
@@ -713,24 +951,25 @@ export default function Dashboard() {
             >
               <path
                 fillRule="evenodd"
-                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
                 clipRule="evenodd"
               />
             </svg>
+            <span className="text-sm">Optimize Portfolio</span>
           </button>
-        )}
+        </aside>
 
-        {/* Right: Visualizations */}
-        <section className="flex-1 p-4 overflow-y-auto bg-white dark:bg-gray-800">
-          {/* visual area header removed per UX request */}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Efficient Frontier */}
-            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-              <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
+        {/* Right Content: Charts and Analysis */}
+        <section className="flex-1 p-3 lg:p-4 space-y-4 overflow-y-auto">
+          {/* Enhanced Charts Grid */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {/* Enhanced Efficient Frontier */}
+            <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                <div className="w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"></div>
                 Efficient Frontier
               </h3>
-              <div className="w-full h-[40vh]">
+              <div className="w-full h-64">
                 <Scatter
                   data={mockEfficientFrontierData}
                   options={{
@@ -741,29 +980,29 @@ export default function Dashboard() {
                         title: {
                           display: true,
                           text: "Risk (Std Dev)",
-                          color: theme === "dark" ? "#fff" : "#000",
+                          color: "#fff",
                         },
-                        ticks: { color: theme === "dark" ? "#fff" : "#000" },
+                        ticks: { color: "#fff" },
                         grid: {
-                          color: theme === "dark" ? "#374151" : "#e5e7eb",
+                          color: "#4B5563",
                         },
                       },
                       y: {
                         title: {
                           display: true,
                           text: "Return (%)",
-                          color: theme === "dark" ? "#fff" : "#000",
+                          color: "#fff",
                         },
-                        ticks: { color: theme === "dark" ? "#fff" : "#000" },
+                        ticks: { color: "#fff" },
                         grid: {
-                          color: theme === "dark" ? "#374151" : "#e5e7eb",
+                          color: "#4B5563",
                         },
                       },
                     },
                     plugins: {
                       legend: {
                         labels: {
-                          color: theme === "dark" ? "#fff" : "#000",
+                          color: "#fff",
                         },
                       },
                     },
@@ -772,14 +1011,15 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Projected Portfolio Growth */}
-            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-              <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
-                Projected Portfolio Growth
+            {/* Enhanced Portfolio Performance */}
+            <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-cyan-500 rounded-full"></div>
+                Portfolio Performance
               </h3>
-              <div className="w-full h-[40vh]">
+              <div className="w-full h-64">
                 <Line
-                  data={mockGrowthData}
+                  data={portfolioPerformanceData}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
@@ -788,29 +1028,29 @@ export default function Dashboard() {
                         title: {
                           display: true,
                           text: "Time",
-                          color: theme === "dark" ? "#fff" : "#000",
+                          color: "#fff",
                         },
-                        ticks: { color: theme === "dark" ? "#fff" : "#000" },
+                        ticks: { color: "#fff" },
                         grid: {
-                          color: theme === "dark" ? "#374151" : "#e5e7eb",
+                          color: "#4B5563",
                         },
                       },
                       y: {
                         title: {
                           display: true,
                           text: "Value ($)",
-                          color: theme === "dark" ? "#fff" : "#000",
+                          color: "#fff",
                         },
-                        ticks: { color: theme === "dark" ? "#fff" : "#000" },
+                        ticks: { color: "#fff" },
                         grid: {
-                          color: theme === "dark" ? "#374151" : "#e5e7eb",
+                          color: "#4B5563",
                         },
                       },
                     },
                     plugins: {
                       legend: {
                         labels: {
-                          color: theme === "dark" ? "#fff" : "#000",
+                          color: "#fff",
                         },
                       },
                     },
@@ -819,26 +1059,33 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Recommended Portfolio */}
-            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-              <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
+            {/* Enhanced Recommended Portfolio */}
+            <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                <div className="w-3 h-3 bg-gradient-to-r from-violet-400 to-purple-500 rounded-full"></div>
                 Recommended Portfolio
               </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                This section will display the recommended portfolio based on the
-                analysis.
-              </p>
-            </div>
-
-            {/* Risk-Return Trade-offs */}
-            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm lg:col-span-1">
-              <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">
-                Risk-Return Trade-offs
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Additional visualizations or metrics can be added here (e.g.,
-                Sharpe Ratio, etc.).
-              </p>
+              <div className="space-y-3">
+                {portfolio.map(({ symbol, weight }) => (
+                  <div
+                    key={symbol}
+                    className="flex items-center justify-between p-3 bg-gray-700 rounded-xl border border-gray-600"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                      <span className="font-medium text-white">{symbol}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-300">
+                      {weight.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+                {portfolio.length === 0 && (
+                  <p className="text-gray-400 text-center py-8">
+                    Click "Optimize Portfolio" to generate recommendations
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </section>

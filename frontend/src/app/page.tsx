@@ -339,15 +339,15 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex flex-1 relative">
         {/* Left Sidebar: Enhanced Inputs - Always Visible */}
-        <aside className="w-full lg:w-96 xl:w-[28rem] p-4 lg:p-6 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700 overflow-y-auto shadow-xl lg:shadow-none">
+        <aside className="w-full lg:w-72 xl:w-80 px-4 py-4 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700 overflow-y-auto shadow-xl lg:shadow-none">
           {/* Portfolio Stocks Section with Border */}
-          <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-gray-700/50 to-gray-600/50 rounded-xl border border-gray-600/50">
-              <div className="flex items-center justify-between mb-2">
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-3 w-3 text-blue-400"
+                    className="h-3 w-3 text-gray-400"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
@@ -357,10 +357,10 @@ export default function Dashboard() {
                 </h3>
                 <button
                   onClick={() => setShowAddForm((s) => !s)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
                     showAddForm
-                      ? "bg-red-900/50 text-red-400 border border-red-700"
-                      : "bg-blue-900/50 text-blue-400 border border-blue-700"
+                      ? "bg-gray-700 text-gray-300 border border-gray-600"
+                      : "bg-gray-700 text-gray-300 border border-gray-600"
                   }`}
                 >
                   <svg
@@ -383,184 +383,188 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Enhanced Collapsible Add Form */}
-              {showAddForm && (
-                <div className="p-6 bg-gradient-to-br from-gray-700/50 to-gray-600/50 rounded-2xl border border-gray-600/50 mb-6 transition-all duration-300">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">
-                        Stock Symbol
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Enter symbol (e.g., 0001.HK)"
-                          className="w-full p-3 border border-gray-600 rounded-xl text-white bg-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          value={symbolQuery || newStock.symbol}
-                          onChange={(e) => {
-                            setSymbolQuery(e.target.value);
-                            setNewStock({
-                              ...newStock,
-                              symbol: e.target.value.toUpperCase(),
-                            });
-                          }}
-                        />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 text-gray-400"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                      </div>
-                      {/* Enhanced typeahead list */}
-                      {symbolQuery && filteredSymbols.length > 0 && (
-                        <div className="border border-gray-600 bg-gray-700 rounded-xl mt-1 max-h-40 overflow-y-auto shadow-lg z-10">
-                          {filteredSymbols.map((s) => (
-                            <div
-                              key={s}
-                              className="px-4 py-3 hover:bg-gray-600 cursor-pointer text-sm transition-colors duration-150 border-b border-gray-600 last:border-b-0"
-                              onClick={() => {
-                                setNewStock({ ...newStock, symbol: s });
-                                setSymbolQuery(s);
-                                setFilteredSymbols([]);
-                              }}
-                            >
-                              <div className="font-medium text-white">{s}</div>
-                              <div className="text-xs text-gray-400">
-                                {COMPANY_NAMES[s] || "Unknown Company"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {errors.symbol && (
-                        <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                          <svg
-                            className="h-3 w-3"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          {errors.symbol}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-300">
-                          Quantity
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="Enter quantity"
-                          className="w-full p-3 border border-gray-600 rounded-xl text-white bg-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          value={newStock.quantity || ""}
-                          onChange={(e) =>
-                            setNewStock({
-                              ...newStock,
-                              quantity: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
-                        {errors.quantity && (
-                          <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                            <svg
-                              className="h-3 w-3"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {errors.quantity}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-300">
-                          Price ($)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Enter price"
-                          className="w-full p-3 border border-gray-600 rounded-xl text-white bg-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                          value={newStock.price || ""}
-                          onChange={(e) =>
-                            setNewStock({
-                              ...newStock,
-                              price: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                        />
-                        {errors.price && (
-                          <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                            <svg
-                              className="h-3 w-3"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {errors.price}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        // validation
-                        const e: typeof errors = {};
-                        if (!newStock.symbol) e.symbol = "Symbol is required";
-                        if (newStock.price <= 0) e.price = "Price must be > 0";
-                        if (newStock.quantity <= 0)
-                          e.quantity = "Quantity must be > 0";
-                        setErrors(e);
-                        if (Object.keys(e).length === 0) {
-                          setStocks([...stocks, newStock]);
-                          setNewStock({
-                            symbol: "",
-                            price: 0,
-                            quantity: 0,
-                          });
-                          setSymbolQuery("");
-                          setShowAddForm(false);
-                        }
-                      }}
-                      className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium rounded-xl transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                    >
-                      Add Stock to Portfolio
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Enhanced Scrollable Stock List */}
               <div className="relative">
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300">
+                <div className="space-y-1 max-h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300">
+                  {/* Enhanced Collapsible Add Form */}
+                  {showAddForm && (
+                    <div className="px-2 py-2 bg-gray-800/50 rounded-lg border border-gray-600/50 mb-2 transition-all duration-300">
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-gray-300">
+                            Stock Symbol
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Enter symbol (e.g., 0001.HK)"
+                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                              value={symbolQuery || newStock.symbol}
+                              onChange={(e) => {
+                                setSymbolQuery(e.target.value);
+                                setNewStock({
+                                  ...newStock,
+                                  symbol: e.target.value.toUpperCase(),
+                                });
+                              }}
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3 w-3 text-gray-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          </div>
+                          {/* Enhanced typeahead list */}
+                          {symbolQuery && filteredSymbols.length > 0 && (
+                            <div className="border border-gray-600 bg-gray-700 rounded-xl mt-1 max-h-40 overflow-y-auto shadow-lg z-10">
+                              {filteredSymbols.map((s) => (
+                                <div
+                                  key={s}
+                                  className="px-4 py-3 hover:bg-gray-600 cursor-pointer text-sm transition-colors duration-150 border-b border-gray-600 last:border-b-0"
+                                  onClick={() => {
+                                    setNewStock({ ...newStock, symbol: s });
+                                    setSymbolQuery(s);
+                                    setFilteredSymbols([]);
+                                  }}
+                                >
+                                  <div className="font-medium text-white">
+                                    {s}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {COMPANY_NAMES[s] || "Unknown Company"}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {errors.symbol && (
+                            <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                              <svg
+                                className="h-3 w-3"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              {errors.symbol}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-300">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="Enter quantity"
+                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                              value={newStock.quantity || ""}
+                              onChange={(e) =>
+                                setNewStock({
+                                  ...newStock,
+                                  quantity: parseInt(e.target.value) || 0,
+                                })
+                              }
+                            />
+                            {errors.quantity && (
+                              <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                                <svg
+                                  className="h-3 w-3"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                {errors.quantity}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-300">
+                              Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Enter price"
+                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                              value={newStock.price || ""}
+                              onChange={(e) =>
+                                setNewStock({
+                                  ...newStock,
+                                  price: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                            />
+                            {errors.price && (
+                              <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                                <svg
+                                  className="h-3 w-3"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                {errors.price}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            // validation
+                            const e: typeof errors = {};
+                            if (!newStock.symbol)
+                              e.symbol = "Symbol is required";
+                            if (newStock.price <= 0)
+                              e.price = "Price must be > 0";
+                            if (newStock.quantity <= 0)
+                              e.quantity = "Quantity must be > 0";
+                            setErrors(e);
+                            if (Object.keys(e).length === 0) {
+                              setStocks([...stocks, newStock]);
+                              setNewStock({
+                                symbol: "",
+                                price: 0,
+                                quantity: 0,
+                              });
+                              setSymbolQuery("");
+                              setShowAddForm(false);
+                            }
+                          }}
+                          className="w-full mt-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md border border-gray-600"
+                        >
+                          Add Stock to Portfolio
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {stocks.map((stock, index) => {
                     const isExpanded = expandedStocks[index] || false;
 
@@ -577,7 +581,7 @@ export default function Dashboard() {
                         className="bg-gray-700 border border-gray-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                       >
                         {/* Compact Stock Display */}
-                        <div className="p-3 flex items-center justify-between">
+                        <div className="px-3 py-2 flex items-center justify-between">
                           {/* Left Side - Stock Info */}
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-white text-sm">
@@ -600,8 +604,8 @@ export default function Dashboard() {
                               <div
                                 className={`text-xs font-medium ${
                                   stock.percentageChange >= 0
-                                    ? "text-green-400"
-                                    : "text-red-400"
+                                    ? "text-gray-300"
+                                    : "text-gray-400"
                                 }`}
                               >
                                 <span>
@@ -666,13 +670,13 @@ export default function Dashboard() {
                               {/* Entry Price Input */}
                               <div className="space-y-1">
                                 <label className="block text-xs font-medium text-gray-400">
-                                  Entry Price ($)
+                                  Entry Price
                                 </label>
                                 <input
                                   type="number"
                                   step="0.01"
                                   placeholder="0.00"
-                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                                   value={stock.price}
                                   onChange={(e) => {
                                     const val = parseFloat(e.target.value) || 0;
@@ -694,7 +698,7 @@ export default function Dashboard() {
                                 <input
                                   type="number"
                                   placeholder="0"
-                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                                   value={stock.quantity}
                                   onChange={(e) => {
                                     const val = parseInt(e.target.value) || 0;
@@ -717,7 +721,7 @@ export default function Dashboard() {
                                   type="number"
                                   step="0.1"
                                   placeholder="0.0"
-                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-500 rounded text-white bg-gray-600 placeholder-gray-400 focus:ring-1 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                                   value={
                                     portfolio.find(
                                       (p) => p.symbol === stock.symbol
@@ -792,12 +796,12 @@ export default function Dashboard() {
           )}
 
           {/* Compact Risk Tolerance */}
-          <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-purple-900/50 to-pink-900/50 rounded-xl border border-purple-600/50">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3 text-purple-400"
+                  className="h-3 w-3 text-gray-400"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -818,7 +822,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <span className="text-xs text-gray-300">High</span>
-                <div className="px-1.5 py-0.5 bg-gray-700 rounded-md border border-gray-600 text-xs font-medium text-purple-400">
+                <div className="px-1.5 py-0.5 bg-gray-700 rounded-md border border-gray-600 text-xs font-medium text-gray-300">
                   {riskTolerance}
                 </div>
               </div>
@@ -826,12 +830,12 @@ export default function Dashboard() {
           </section>
 
           {/* Compact Scenario Analysis */}
-          <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-orange-900/50 to-amber-900/50 rounded-xl border border-orange-600/50">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3 text-orange-400"
+                  className="h-3 w-3 text-gray-400"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -846,7 +850,7 @@ export default function Dashboard() {
               <select
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
-                className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
               >
                 {mockScenarios.map((sc) => (
                   <option key={sc} value={sc}>
@@ -858,12 +862,12 @@ export default function Dashboard() {
           </section>
 
           {/* Compact Investment Horizon */}
-          <section className="mb-3">
-            <div className="p-2 bg-gradient-to-br from-green-900/50 to-emerald-900/50 rounded-xl border border-green-600/50">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
+          <section className="mb-4">
+            <div className="px-3 py-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3 text-green-500"
+                  className="h-3 w-3 text-gray-400"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -875,55 +879,61 @@ export default function Dashboard() {
                 </svg>
                 Investment Horizon
               </h3>
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { value: 0.083, label: "1M" },
-                    { value: 0.25, label: "3M" },
-                    { value: 0.5, label: "6M" },
-                    { value: 1, label: "1Y" },
-                    { value: 3, label: "3Y" },
-                    { value: 5, label: "5Y" },
-                    { value: 10, label: "10Y" },
-                    { value: 0, label: "Custom" },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setHorizon(option.value)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 border ${
-                        horizon === option.value
-                          ? "bg-green-500 text-white border-green-500"
-                          : "bg-gray-700 text-gray-300 border-gray-600 hover:border-green-400"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                {horizon === 0 && (
-                  <div className="flex gap-1.5 mt-1.5">
-                    <input
-                      type="number"
-                      min={1}
-                      value={customHorizonValue}
-                      onChange={(e) =>
-                        setCustomHorizonValue(parseInt(e.target.value || "1"))
-                      }
-                      className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    />
-                    <select
-                      value={horizonUnit}
-                      onChange={(e) => setHorizonUnit(e.target.value)}
-                      className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    >
-                      <option value="minutes">Minutes</option>
-                      <option value="hours">Hours</option>
-                      <option value="daily">Daily</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
+              <div className="relative">
+                <div className="min-h-[5rem] max-h-[5rem] overflow-y-auto">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { value: 0.083, label: "1M" },
+                        { value: 0.25, label: "3M" },
+                        { value: 0.5, label: "6M" },
+                        { value: 1, label: "1Y" },
+                        { value: 3, label: "3Y" },
+                        { value: 5, label: "5Y" },
+                        { value: 10, label: "10Y" },
+                        { value: 0, label: "Custom" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setHorizon(option.value)}
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 border ${
+                            horizon === option.value
+                              ? "bg-gray-600 text-white border-gray-600"
+                              : "bg-gray-700 text-gray-300 border-gray-600 hover:border-gray-400"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    {horizon === 0 && (
+                      <div className="flex gap-1.5 mt-1.5">
+                        <input
+                          type="number"
+                          min={1}
+                          value={customHorizonValue}
+                          onChange={(e) =>
+                            setCustomHorizonValue(
+                              parseInt(e.target.value || "1")
+                            )
+                          }
+                          className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                        />
+                        <select
+                          value={horizonUnit}
+                          onChange={(e) => setHorizonUnit(e.target.value)}
+                          className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="minutes">Minutes</option>
+                          <option value="hours">Hours</option>
+                          <option value="daily">Daily</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </section>
@@ -931,7 +941,7 @@ export default function Dashboard() {
           {/* Compact Optimize Button */}
           <button
             onClick={handleOptimize}
-            className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            className="w-full py-2 px-3 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 border border-gray-600"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

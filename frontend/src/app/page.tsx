@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Line, Scatter, Bar, Doughnut } from "react-chartjs-2";
+import { Line, Scatter, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,6 +35,15 @@ interface Stock {
   quantity: number;
   livePrice?: number;
   percentageChange?: number;
+}
+
+interface PortfolioRecommendation {
+  symbol: string;
+  currentQuantity: number;
+  recommendedQuantity: number;
+  currentPrice: number;
+  action: "increase" | "decrease" | "hold";
+  reason: string;
 }
 
 const COMPANY_NAMES: { [key: string]: string } = {
@@ -127,6 +136,9 @@ export default function Home() {
   const [filteredStocks, setFilteredStocks] = useState<string[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [portfolioRecommendations, setPortfolioRecommendations] = useState<
+    PortfolioRecommendation[]
+  >([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [riskTolerance, setRiskTolerance] = useState(5);
   const [horizon, setHorizon] = useState(1);
@@ -152,44 +164,46 @@ export default function Home() {
     "Interest Rate Rise",
   ];
 
-  // Mock data for AI Financial Dashboard
+  // Mock data for trading dashboard
   const mockPerformanceData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    datasets: [
-      {
-        label: "Portfolio Performance",
-        data: [100, 103, 98, 107, 112, 115],
-        borderColor: "rgb(59, 130, 246)",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        tension: 0.1,
-      },
+    labels: [
+      "09:30",
+      "10:00",
+      "10:30",
+      "11:00",
+      "11:30",
+      "12:00",
+      "12:30",
+      "13:00",
+      "13:30",
+      "14:00",
     ],
-  };
-
-  const mockAllocationData = {
-    labels: ["Stocks", "Cash"],
     datasets: [
       {
-        data: [90, 10],
-        backgroundColor: ["#3B82F6", "#8B5CF6"],
-        borderColor: ["#1D4ED8", "#7C3AED"],
+        label: "Portfolio P&L",
+        data: [0, 1200, -800, 2100, 1850, 3200, 2900, 4100, 3800, 4250],
+        borderColor: "#00ff88",
+        backgroundColor: "rgba(0, 255, 136, 0.1)",
+        tension: 0.1,
+        pointRadius: 0,
         borderWidth: 2,
       },
     ],
   };
 
   const mockSectorData = {
-    labels: ["Tech", "Finance", "Healthcare", "Energy", "Consumer"],
+    labels: ["TECH", "FINANCE", "ENERGY", "HEALTHCARE", "CONSUMER"],
     datasets: [
       {
-        data: [25, 20, 15, 12, 18],
+        data: [35, 25, 15, 12, 13],
         backgroundColor: [
-          "#3B82F6",
-          "#10B981",
-          "#F59E0B",
-          "#EF4444",
-          "#8B5CF6",
+          "#00ff88",
+          "#47a3ff",
+          "#ffb347",
+          "#ff4747",
+          "#8b5cf6",
         ],
+        borderWidth: 0,
       },
     ],
   };
@@ -199,10 +213,7 @@ export default function Home() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "top" as const,
-        labels: {
-          color: "white",
-        },
+        display: false,
       },
       title: {
         display: false,
@@ -211,18 +222,34 @@ export default function Home() {
     scales: {
       x: {
         ticks: {
-          color: "white",
+          color: "#9ca3af",
+          font: {
+            family: "var(--font-mono)",
+            size: 11,
+          },
         },
         grid: {
-          color: "rgba(255, 255, 255, 0.1)",
+          color: "#1a1a1b",
+          lineWidth: 1,
+        },
+        border: {
+          color: "#1a1a1b",
         },
       },
       y: {
         ticks: {
-          color: "white",
+          color: "#9ca3af",
+          font: {
+            family: "var(--font-mono)",
+            size: 11,
+          },
         },
         grid: {
-          color: "rgba(255, 255, 255, 0.1)",
+          color: "#1a1a1b",
+          lineWidth: 1,
+        },
+        border: {
+          color: "#1a1a1b",
         },
       },
     },
@@ -240,6 +267,45 @@ export default function Home() {
       points.push({ x: risk, y: expectedReturn });
     }
     return points.sort((a, b) => a.x - b.x);
+  }
+
+  // Generate portfolio recommendations
+  function generatePortfolioRecommendations(
+    stocks: Stock[]
+  ): PortfolioRecommendation[] {
+    return stocks.map((stock) => {
+      const rand = Math.random();
+      let action: "increase" | "decrease" | "hold";
+      let recommendedQuantity = stock.quantity;
+      let reason = "";
+
+      if (rand < 0.4) {
+        action = "decrease";
+        recommendedQuantity = Math.max(
+          0,
+          Math.floor(stock.quantity * (0.7 + Math.random() * 0.2))
+        );
+        reason = "Overweight position - reduce exposure";
+      } else if (rand < 0.7) {
+        action = "increase";
+        recommendedQuantity = Math.floor(
+          stock.quantity * (1.1 + Math.random() * 0.3)
+        );
+        reason = "Underweight position - increase allocation";
+      } else {
+        action = "hold";
+        reason = "Position sized appropriately";
+      }
+
+      return {
+        symbol: stock.symbol,
+        currentQuantity: stock.quantity,
+        recommendedQuantity,
+        currentPrice: stock.livePrice || stock.price,
+        action,
+        reason,
+      };
+    });
   }
 
   useEffect(() => {
@@ -294,6 +360,13 @@ export default function Home() {
       } catch (error: any) {
         console.warn("Stock subscription failed:", error);
       }
+    }
+  }, [stocks]);
+
+  useEffect(() => {
+    // Generate recommendations when stocks change
+    if (stocks.length > 0) {
+      setPortfolioRecommendations(generatePortfolioRecommendations(stocks));
     }
   }, [stocks]);
 
@@ -378,45 +451,68 @@ export default function Home() {
     }
   };
 
-  const handleSaveEdit = () => {
-    if (editingStock) {
-      setStocks(
-        stocks.map((stock) =>
-          stock.symbol === editingStock ? { ...stock, ...editForm } : stock
-        )
-      );
-      setEditingStock(null);
-      setEditForm({ price: 0, quantity: 0 });
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+    }).format(price);
+  };
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat("en-US").format(num);
+  };
+
+  const getChangeColor = (change: number) => {
+    if (change > 0) return "text-green-400";
+    if (change < 0) return "text-red-400";
+    return "text-gray-400";
+  };
+
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case "increase":
+        return "text-green-400";
+      case "decrease":
+        return "text-red-400";
+      default:
+        return "text-blue-400";
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditingStock(null);
-    setEditForm({ price: 0, quantity: 0 });
+  const getTotalPortfolioValue = () => {
+    return stocks.reduce(
+      (acc, stock) => acc + (stock.livePrice || stock.price) * stock.quantity,
+      0
+    );
+  };
+
+  const getTotalDayChange = () => {
+    return stocks.reduce((acc, stock) => {
+      const change = stock.percentageChange || 0;
+      const value = (stock.livePrice || stock.price) * stock.quantity;
+      return acc + (value * change) / 100;
+    }, 0);
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gray-900 text-white">
+    <div className="flex flex-col min-h-screen w-full trading-bg text-white trading-font">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 text-white p-3 flex items-center justify-between shadow-lg sticky top-0 z-50">
-        <div className="flex items-center gap-3">
+      <header className="trading-bg-darker trading-border border-b text-white p-2 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs">AI</span>
-            </div>
             <h1 className="text-lg font-bold text-white">
-              Intelligent Financial Advisor
+              INTELLIGENT FINANCIAL ADVISOR
             </h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Changed from gap-4 */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 rounded-lg">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-gray-300">AI Active</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-gray-800 rounded">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-xs text-gray-300">AI ACTIVE</span>
           </div>
           <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+            className={`flex items-center gap-2 px-2 py-1 rounded text-xs font-medium transition-all duration-150 ${
               wsConnected
                 ? "bg-green-900/40 text-green-400 border border-green-700"
                 : "bg-red-900/40 text-red-400 border border-red-700"
@@ -427,23 +523,22 @@ export default function Home() {
                 wsConnected ? "bg-green-400" : "bg-red-400"
               }`}
             ></div>
-            <span>{wsConnected ? "Live" : "Disconnected"}</span>
+            <span>{wsConnected ? "LIVE" : "DISCONNECTED"}</span>
           </div>
-          <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
-            Export Report
+          <button className="btn-trading px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-all">
+            EXPORT
           </button>
         </div>
       </header>
 
       <main className="flex flex-1 relative">
         {/* Left Sidebar: Input Controls */}
-        <aside className="w-80 px-4 py-4 bg-gray-800 border-r border-gray-700 overflow-y-auto shadow-xl">
+        <aside className="w-80 px-2 py-2 trading-bg-darker trading-border border-r overflow-y-auto">
           {/* Portfolio Stocks Section */}
           <section className="mb-2">
-            {/* Changed from mb-4 */}
-            <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <div className="px-2 py-2 trading-bg rounded border trading-border">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-white flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-3 w-3 text-blue-400"
@@ -452,11 +547,11 @@ export default function Home() {
                   >
                     <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Portfolio Stocks
+                  PORTFOLIO STOCKS
                 </h3>
                 <button
                   onClick={() => setShowAddForm((s) => !s)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-700 text-gray-300 border border-gray-600 hover:border-gray-500 transition-all duration-200"
+                  className="btn-trading flex items-center gap-1 px-2 py-1 rounded text-xs font-medium trading-bg border trading-border hover:border-gray-500 transition-all"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -473,24 +568,24 @@ export default function Home() {
                     />
                   </svg>
                   <span className="text-xs">
-                    {showAddForm ? "Cancel" : "Add Stock"}
+                    {showAddForm ? "CANCEL" : "ADD"}
                   </span>
                 </button>
               </div>
 
               <div className="relative">
-                <div className="space-y-1 max-h-64 overflow-y-auto pr-2">
+                <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
                   {showAddForm && (
-                    <div className="px-2 py-2 bg-gray-800 rounded-lg border border-gray-600 mb-2">
+                    <div className="px-2 py-2 trading-bg-darker rounded border trading-border mb-2">
                       <div className="space-y-2">
                         <div className="space-y-1 relative" ref={dropdownRef}>
                           <label className="block text-xs font-medium text-gray-300">
-                            Stock Symbol
+                            SYMBOL
                           </label>
                           <input
                             type="text"
-                            placeholder="Search stocks (e.g., HSBC or 0005.HK)"
-                            className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            placeholder="Search stocks..."
+                            className="w-full p-2 border trading-border rounded text-xs text-white trading-bg placeholder-gray-400 focus:ring-1 focus:ring-green-500 focus:border-transparent transition-all"
                             value={symbolQuery}
                             onChange={(e) => {
                               setSymbolQuery(e.target.value);
@@ -504,11 +599,11 @@ export default function Home() {
 
                           {/* Dropdown */}
                           {showDropdown && filteredStocks.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 bg-gray-700 border border-gray-600 rounded-lg mt-1 max-h-48 overflow-y-auto z-50 shadow-lg">
+                            <div className="absolute top-full left-0 right-0 trading-bg border trading-border rounded mt-1 max-h-48 overflow-y-auto z-50 shadow-lg">
                               {filteredStocks.map((symbol) => (
                                 <div
                                   key={symbol}
-                                  className="px-3 py-2 hover:bg-gray-600 cursor-pointer border-b border-gray-600 last:border-b-0"
+                                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b trading-border last:border-b-0"
                                   onClick={() => {
                                     setNewStock({
                                       ...newStock,
@@ -518,7 +613,7 @@ export default function Home() {
                                     setShowDropdown(false);
                                   }}
                                 >
-                                  <div className="text-sm font-medium text-white">
+                                  <div className="text-xs font-medium text-white">
                                     {symbol}
                                   </div>
                                   <div className="text-xs text-gray-300">
@@ -532,12 +627,12 @@ export default function Home() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <label className="block text-xs font-medium text-gray-300">
-                              Quantity
+                              QTY
                             </label>
                             <input
                               type="number"
-                              placeholder="Qty"
-                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                              placeholder="Quantity"
+                              className="w-full p-2 border trading-border rounded text-xs text-white trading-bg placeholder-gray-400 focus:ring-1 focus:ring-green-500 focus:border-transparent transition-all"
                               value={newStock.quantity || ""}
                               onChange={(e) =>
                                 setNewStock({
@@ -549,13 +644,13 @@ export default function Home() {
                           </div>
                           <div className="space-y-1">
                             <label className="block text-xs font-medium text-gray-300">
-                              Price ($)
+                              PRICE
                             </label>
                             <input
                               type="number"
                               step="0.01"
                               placeholder="Price"
-                              className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                              className="w-full p-2 border trading-border rounded text-xs text-white trading-bg placeholder-gray-400 focus:ring-1 focus:ring-green-500 focus:border-transparent transition-all"
                               value={newStock.price || ""}
                               onChange={(e) =>
                                 setNewStock({
@@ -589,9 +684,9 @@ export default function Home() {
                               setShowDropdown(false);
                             }
                           }}
-                          className="w-full mt-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200"
+                          className="btn-trading w-full mt-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-all"
                         >
-                          Add Stock
+                          ADD STOCK
                         </button>
                       </div>
                     </div>
@@ -600,31 +695,26 @@ export default function Home() {
                   {stocks.map((stock, index) => (
                     <div
                       key={`${stock.symbol}-${index}`}
-                      className="bg-gray-700 border border-gray-600 rounded-lg p-2"
+                      className="trading-bg border trading-border rounded p-2"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="font-medium text-white text-sm">
+                          <div className="font-medium text-white text-xs">
                             {stock.symbol}
                           </div>
-                          <div className="text-xs text-gray-300">
+                          <div className="text-xs text-gray-400 truncate">
                             {COMPANY_NAMES[stock.symbol] ?? "Unknown"}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="text-right">
-                            <div className="text-sm text-white">
-                              $
-                              {stock.livePrice?.toFixed(2) ||
-                                stock.price.toFixed(2)}
+                            <div className="text-xs text-white font-mono">
+                              {formatPrice(stock.livePrice || stock.price)}
                             </div>
                             <div
-                              className={`text-xs ${
-                                stock.percentageChange &&
-                                stock.percentageChange >= 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
+                              className={`text-xs font-mono ${getChangeColor(
+                                stock.percentageChange || 0
+                              )}`}
                             >
                               {stock.percentageChange?.toFixed(2) || "0.00"}%
                             </div>
@@ -632,7 +722,7 @@ export default function Home() {
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleEditStock(stock.symbol)}
-                              className="text-gray-400 hover:text-blue-400 p-1 rounded transition-colors"
+                              className="btn-trading text-gray-400 hover:text-blue-400 p-1 rounded transition-colors"
                               title="Edit stock"
                             >
                               <svg
@@ -660,7 +750,7 @@ export default function Home() {
                             </button>
                             <button
                               onClick={() => handleRemoveStock(stock.symbol)}
-                              className="text-gray-400 hover:text-red-400 p-1 rounded transition-colors"
+                              className="btn-trading text-gray-400 hover:text-red-400 p-1 rounded transition-colors"
                               title="Remove stock"
                             >
                               <svg
@@ -683,11 +773,11 @@ export default function Home() {
 
                       {/* Edit Form */}
                       {editingStock === stock.symbol && (
-                        <div className="mt-3 pt-3 border-t border-gray-600">
-                          <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div className="mt-2 pt-2 border-t trading-border">
+                          <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="block text-xs text-gray-300 mb-1">
-                                Price
+                                PRICE
                               </label>
                               <input
                                 type="number"
@@ -696,11 +786,7 @@ export default function Home() {
                                 onChange={(e) => {
                                   const newPrice =
                                     parseFloat(e.target.value) || 0;
-                                  setEditForm({
-                                    ...editForm,
-                                    price: newPrice,
-                                  });
-                                  // Auto-save changes
+                                  setEditForm({ ...editForm, price: newPrice });
                                   if (editingStock) {
                                     setStocks(
                                       stocks.map((stock) =>
@@ -711,12 +797,12 @@ export default function Home() {
                                     );
                                   }
                                 }}
-                                className="w-full px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-xs"
+                                className="w-full px-2 py-1 trading-bg border trading-border rounded text-white text-xs"
                               />
                             </div>
                             <div>
                               <label className="block text-xs text-gray-300 mb-1">
-                                Quantity
+                                QTY
                               </label>
                               <input
                                 type="number"
@@ -729,7 +815,6 @@ export default function Home() {
                                     ...editForm,
                                     quantity: newQuantity,
                                   });
-                                  // Auto-save changes
                                   if (editingStock) {
                                     setStocks(
                                       stocks.map((stock) =>
@@ -740,7 +825,7 @@ export default function Home() {
                                     );
                                   }
                                 }}
-                                className="w-full px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-xs"
+                                className="w-full px-2 py-1 trading-bg border trading-border rounded text-white text-xs"
                               />
                             </div>
                           </div>
@@ -755,9 +840,8 @@ export default function Home() {
 
           {/* Risk Tolerance */}
           <section className="mb-2">
-            {/* Changed from mb-4 */}
-            <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+            <div className="px-2 py-2 trading-bg rounded border trading-border">
+              <h3 className="text-xs font-semibold text-white flex items-center gap-2 mb-2">
                 <svg
                   className="h-3 w-3 text-purple-400"
                   fill="currentColor"
@@ -765,20 +849,20 @@ export default function Home() {
                 >
                   <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
                 </svg>
-                Risk Tolerance
+                RISK TOLERANCE
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-300">Low</span>
+                <span className="text-xs text-gray-300">LOW</span>
                 <input
                   type="range"
                   min={1}
                   max={10}
                   value={riskTolerance}
                   onChange={(e) => setRiskTolerance(parseInt(e.target.value))}
-                  className="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  className="flex-1 h-1 slider rounded appearance-none cursor-pointer"
                 />
-                <span className="text-xs text-gray-300">High</span>
-                <div className="px-2 py-1 bg-gray-700 rounded-md text-xs font-medium text-white min-w-[2rem] text-center">
+                <span className="text-xs text-gray-300">HIGH</span>
+                <div className="px-2 py-1 trading-bg-darker rounded text-xs font-medium text-white min-w-[2rem] text-center">
                   {riskTolerance}
                 </div>
               </div>
@@ -787,9 +871,8 @@ export default function Home() {
 
           {/* Scenario Analysis */}
           <section className="mb-2">
-            {/* Changed from mb-4 */}
-            <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+            <div className="px-2 py-2 trading-bg rounded border trading-border">
+              <h3 className="text-xs font-semibold text-white flex items-center gap-2 mb-2">
                 <svg
                   className="h-3 w-3 text-orange-400"
                   fill="currentColor"
@@ -801,12 +884,12 @@ export default function Home() {
                     clipRule="evenodd"
                   />
                 </svg>
-                Scenario Analysis
+                SCENARIO ANALYSIS
               </h3>
               <select
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
-                className="w-full p-2 border border-gray-600 rounded-lg text-sm text-white bg-gray-700 focus:ring-1 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                className="w-full p-2 border trading-border rounded text-xs text-white trading-bg focus:ring-1 focus:ring-orange-500 focus:border-transparent transition-all"
               >
                 {mockScenarios.map((sc) => (
                   <option key={sc} value={sc}>
@@ -819,9 +902,8 @@ export default function Home() {
 
           {/* Investment Horizon */}
           <section className="mb-2">
-            {/* Changed from mb-4 */}
-            <div className="px-3 py-3 bg-gray-900 rounded-xl border border-gray-700">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+            <div className="px-2 py-2 trading-bg rounded border trading-border">
+              <h3 className="text-xs font-semibold text-white flex items-center gap-2 mb-2">
                 <svg
                   className="h-3 w-3 text-green-400"
                   fill="currentColor"
@@ -833,70 +915,37 @@ export default function Home() {
                     clipRule="evenodd"
                   />
                 </svg>
-                Investment Horizon
+                INVESTMENT HORIZON
               </h3>
-              <div className="relative">
-                <div className="min-h-[5rem] max-h-[5rem] overflow-y-auto">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        { value: 0.083, label: "1M" },
-                        { value: 0.25, label: "3M" },
-                        { value: 0.5, label: "6M" },
-                        { value: 1, label: "1Y" },
-                        { value: 3, label: "3Y" },
-                        { value: 5, label: "5Y" },
-                        { value: 10, label: "10Y" },
-                        { value: 0, label: "Custom" },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => setHorizon(option.value)}
-                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 border ${
-                            horizon === option.value
-                              ? "bg-green-600 text-white border-green-600"
-                              : "bg-gray-700 text-gray-300 border-gray-600 hover:border-green-400"
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    {horizon === 0 && (
-                      <div className="flex gap-1.5 mt-1.5">
-                        <input
-                          type="number"
-                          min={1}
-                          value={customHorizonValue}
-                          onChange={(e) =>
-                            setCustomHorizonValue(
-                              parseInt(e.target.value || "1")
-                            )
-                          }
-                          className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                        />
-                        <select
-                          value={horizonUnit}
-                          onChange={(e) => setHorizonUnit(e.target.value)}
-                          className="flex-1 p-1.5 border border-gray-600 rounded-md text-white bg-gray-700 text-xs focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                        >
-                          <option value="minutes">Minutes</option>
-                          <option value="hours">Hours</option>
-                          <option value="daily">Daily</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="yearly">Yearly</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { value: 0.083, label: "1M" },
+                  { value: 0.25, label: "3M" },
+                  { value: 0.5, label: "6M" },
+                  { value: 1, label: "1Y" },
+                  { value: 3, label: "3Y" },
+                  { value: 5, label: "5Y" },
+                  { value: 10, label: "10Y" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setHorizon(option.value)}
+                    className={`btn-trading px-2 py-1 rounded text-xs font-medium transition-all border ${
+                      horizon === option.value
+                        ? "bg-green-600 text-white border-green-600"
+                        : "trading-bg text-gray-300 trading-border hover:border-green-400"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           </section>
 
           <button
             onClick={handleOptimize}
-            className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            className="btn-trading w-full py-2 px-3 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-all flex items-center justify-center gap-2"
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
               <path
@@ -905,40 +954,30 @@ export default function Home() {
                 clipRule="evenodd"
               />
             </svg>
-            <span className="text-sm">Optimize Portfolio</span>
+            <span className="text-xs">OPTIMIZE PORTFOLIO</span>
           </button>
         </aside>
 
-        {/* Main Content Area - AI Financial Dashboard */}
-        <div className="flex-1 p-6 bg-gray-900 overflow-auto">
+        {/* Main Content Area - Trading Dashboard */}
+        <div className="flex-1 p-2 trading-bg overflow-auto">
           {/* Dashboard Grid Layout */}
-          <div className="grid grid-cols-12 gap-3 h-full">
-            {/* Changed from gap-6 */}
+          <div className="grid grid-cols-12 gap-2 h-full">
             {/* Top Row - Key Metrics */}
-            <div className="col-span-12 grid grid-cols-4 gap-2 mb-3">
-              {/* Changed from gap-4 mb-6 */}
+            <div className="col-span-12 grid grid-cols-4 gap-2 mb-2">
               {/* Portfolio Value */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="trading-bg-darker border trading-border rounded p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-xs font-medium text-gray-400 uppercase">
                       Portfolio Value
                     </h3>
-                    <p className="text-2xl font-bold text-white">
-                      $
-                      {stocks
-                        .reduce(
-                          (acc, stock) =>
-                            acc +
-                            (stock.livePrice || stock.price) * stock.quantity,
-                          0
-                        )
-                        .toLocaleString()}
+                    <p className="text-xl font-bold text-white font-mono">
+                      {formatPrice(getTotalPortfolioValue())}
                     </p>
                   </div>
-                  <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-green-500/10 rounded flex items-center justify-center">
                     <svg
-                      className="w-5 h-5 text-green-500"
+                      className="w-4 h-4 text-green-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -950,24 +989,33 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <span className="text-sm text-green-400">+2.4%</span>
-                  <span className="text-sm text-gray-400"> today</span>
+                <div className="mt-1">
+                  <span
+                    className={`text-xs font-mono ${getChangeColor(
+                      getTotalDayChange()
+                    )}`}
+                  >
+                    {getTotalDayChange() >= 0 ? "+" : ""}
+                    {formatPrice(getTotalDayChange())}
+                  </span>
+                  <span className="text-xs text-gray-400"> TODAY</span>
                 </div>
               </div>
 
               {/* Total Return */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="trading-bg-darker border trading-border rounded p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-xs font-medium text-gray-400 uppercase">
                       Total Return
                     </h3>
-                    <p className="text-2xl font-bold text-white">12.8%</p>
+                    <p className="text-xl font-bold text-white font-mono">
+                      12.8%
+                    </p>
                   </div>
-                  <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-blue-500/10 rounded flex items-center justify-center">
                     <svg
-                      className="w-5 h-5 text-blue-500"
+                      className="w-4 h-4 text-blue-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -979,25 +1027,25 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <span className="text-sm text-blue-400">YTD</span>
+                <div className="mt-1">
+                  <span className="text-xs text-blue-400 font-mono">YTD</span>
                 </div>
               </div>
 
               {/* Risk Score */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="trading-bg-darker border trading-border rounded p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-xs font-medium text-gray-400 uppercase">
                       AI Risk Score
                     </h3>
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-xl font-bold text-white font-mono">
                       {riskTolerance}/10
                     </p>
                   </div>
-                  <div className="w-10 h-10 bg-orange-500/10 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-orange-500/10 rounded flex items-center justify-center">
                     <svg
-                      className="w-5 h-5 text-orange-500"
+                      className="w-4 h-4 text-orange-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1009,23 +1057,27 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <span className="text-sm text-orange-400">Moderate</span>
+                <div className="mt-1">
+                  <span className="text-xs text-orange-400 font-mono">
+                    MODERATE
+                  </span>
                 </div>
               </div>
 
               {/* AI Confidence */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="trading-bg-darker border trading-border rounded p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-xs font-medium text-gray-400 uppercase">
                       AI Confidence
                     </h3>
-                    <p className="text-2xl font-bold text-white">94%</p>
+                    <p className="text-xl font-bold text-white font-mono">
+                      94%
+                    </p>
                   </div>
-                  <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-purple-500/10 rounded flex items-center justify-center">
                     <svg
-                      className="w-5 h-5 text-purple-500"
+                      className="w-4 h-4 text-purple-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1033,143 +1085,142 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
-                <div className="mt-2">
-                  <span className="text-sm text-purple-400">High</span>
+                <div className="mt-1">
+                  <span className="text-xs text-purple-400 font-mono">
+                    HIGH
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Main Charts Row */}
-            <div className="col-span-8 grid grid-rows-2 gap-3">
-              {/* Changed from gap-6 */}
+            <div className="col-span-8 grid grid-rows-2 gap-2">
               {/* Portfolio Performance Chart */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <div className="trading-bg-darker border trading-border rounded p-4">
                 <div className="flex items-center justify-between mb-2">
-                  {/* Changed from mb-4 */}
-                  <h3 className="text-lg font-semibold text-white">
-                    Portfolio Performance
+                  <h3 className="text-sm font-semibold text-white uppercase">
+                    Portfolio P&L
                   </h3>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-gray-400">Real-time</span>
+                    <span className="text-xs text-gray-400 font-mono">
+                      REAL-TIME
+                    </span>
                   </div>
                 </div>
-                <div className="h-48">
+                <div className="h-40">
                   <Line data={mockPerformanceData} options={chartOptions} />
                 </div>
               </div>
 
-              {/* AI Recommendations */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
-                  AI Recommendations
+              {/* Portfolio Recommendations */}
+              <div className="trading-bg-darker border trading-border rounded p-4">
+                <h3 className="text-sm font-semibold text-white mb-2 uppercase">
+                  Portfolio Recommendations
                 </h3>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium text-white">
-                        Increase Tech Allocation
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Based on current market trends, consider increasing
-                        technology sector exposure by 5-8%
-                      </p>
+                {portfolioRecommendations.length > 0 ? (
+                  <div className="overflow-auto h-40">
+                    <table className="w-full trading-table">
+                      <thead>
+                        <tr className="border-b trading-border">
+                          <th className="text-left py-1 px-2">SYMBOL</th>
+                          <th className="text-right py-1 px-2">CURRENT</th>
+                          <th className="text-right py-1 px-2">RECOMMENDED</th>
+                          <th className="text-center py-1 px-2">ACTION</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {portfolioRecommendations.map((rec, index) => (
+                          <tr key={index} className="border-b trading-border">
+                            <td className="py-2 px-2">
+                              <div>
+                                <div className="text-white font-medium text-xs">
+                                  {rec.symbol}
+                                </div>
+                                <div className="text-gray-400 text-xs">
+                                  {formatPrice(rec.currentPrice)}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="text-right py-2 px-2 text-white font-mono text-xs">
+                              {formatNumber(rec.currentQuantity)}
+                            </td>
+                            <td className="text-right py-2 px-2 text-white font-mono text-xs">
+                              {formatNumber(rec.recommendedQuantity)}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              <div
+                                className={`text-xs font-bold uppercase ${getActionColor(
+                                  rec.action
+                                )}`}
+                              >
+                                {rec.action}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {rec.recommendedQuantity -
+                                  rec.currentQuantity >=
+                                0
+                                  ? "+"
+                                  : ""}
+                                {rec.recommendedQuantity - rec.currentQuantity}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="h-40 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-gray-400 text-sm">
+                        ADD STOCKS TO GENERATE RECOMMENDATIONS
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium text-white">
-                        Rebalance Portfolio
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Your portfolio has drifted from target allocation.
-                        Consider rebalancing.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium text-white">
-                        Diversification Opportunity
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Adding emerging market exposure could improve
-                        risk-adjusted returns
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
             {/* Right Column - Analytics */}
-            <div className="col-span-4 grid grid-rows-3 gap-3">
-              {/* Changed from gap-6 */}
-              {/* Asset Allocation */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
-                  Asset Allocation
-                </h3>
-                <div className="h-32">
-                  <Doughnut
-                    data={mockAllocationData}
-                    options={{
-                      maintainAspectRatio: false,
-                      plugins: { legend: { display: false } },
-                    }}
-                  />
-                </div>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                      <span className="text-gray-300">Stocks</span>
-                    </div>
-                    <span className="text-white">90%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-purple-500 rounded"></div>
-                      <span className="text-gray-300">Cash</span>
-                    </div>
-                    <span className="text-white">10%</span>
-                  </div>
-                </div>
-              </div>
-
+            <div className="col-span-4 grid grid-rows-2 gap-2">
               {/* Risk Analytics */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+              <div className="trading-bg-darker border trading-border rounded p-4">
+                <h3 className="text-sm font-semibold text-white mb-2 uppercase">
                   Risk Analytics
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Volatility</span>
-                    <span className="text-sm text-white">12.4%</span>
+                    <span className="text-xs text-gray-400 uppercase">
+                      Volatility
+                    </span>
+                    <span className="text-xs text-white font-mono">12.4%</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Sharpe Ratio</span>
-                    <span className="text-sm text-white">1.23</span>
+                    <span className="text-xs text-gray-400 uppercase">
+                      Sharpe Ratio
+                    </span>
+                    <span className="text-xs text-white font-mono">1.23</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Max Drawdown</span>
-                    <span className="text-sm text-white">-8.7%</span>
+                    <span className="text-xs text-gray-400 uppercase">
+                      Max Drawdown
+                    </span>
+                    <span className="text-xs text-red-400 font-mono">
+                      -8.7%
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Beta</span>
-                    <span className="text-sm text-white">0.92</span>
+                    <span className="text-xs text-gray-400 uppercase">
+                      Beta
+                    </span>
+                    <span className="text-xs text-white font-mono">0.92</span>
                   </div>
                 </div>
-                <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
+                <div className="mt-3 p-2 trading-bg rounded border trading-border">
                   <div className="flex items-center gap-2">
                     <svg
-                      className="w-4 h-4 text-green-500"
+                      className="w-3 h-3 text-green-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1179,53 +1230,55 @@ export default function Home() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span className="text-xs text-green-400">
-                      Portfolio risk is within target range
+                    <span className="text-xs text-green-400 uppercase">
+                      Risk within target range
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Market Sentiment */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+              <div className="trading-bg-darker border trading-border rounded p-4">
+                <h3 className="text-sm font-semibold text-white mb-2 uppercase">
                   AI Market Sentiment
                 </h3>
-                <div className="text-center mb-2">
-                  {/* Changed from mb-4 */}
-                  <div className="text-3xl font-bold text-green-400">
-                    Bullish
+                <div className="text-center mb-3">
+                  <div className="text-2xl font-bold text-green-400 font-mono">
+                    BULLISH
                   </div>
-                  <div className="text-sm text-gray-400">Market Outlook</div>
+                  <div className="text-xs text-gray-400 uppercase">
+                    Market Outlook
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-400">Fear & Greed Index</span>
-                    <span className="text-green-400">72</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-400 uppercase">
+                      Fear & Greed
+                    </span>
+                    <span className="text-green-400 font-mono">72</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-400">VIX Level</span>
-                    <span className="text-white">18.4</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-400 uppercase">VIX Level</span>
+                    <span className="text-white font-mono">18.4</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-400">AI Confidence</span>
-                    <span className="text-blue-400">High</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-400 uppercase">
+                      AI Confidence
+                    </span>
+                    <span className="text-blue-400 font-mono">HIGH</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Bottom Row - Detailed Analytics */}
-            <div className="col-span-12 grid grid-cols-2 gap-3">
-              {/* Changed from gap-6 */}
+            <div className="col-span-12 grid grid-cols-2 gap-2">
               {/* Efficient Frontier */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+              <div className="trading-bg-darker border trading-border rounded p-4">
+                <h3 className="text-sm font-semibold text-white mb-2 uppercase">
                   Efficient Frontier Analysis
                 </h3>
-                <div className="h-64">
+                <div className="h-48">
                   {portfolio.length > 0 && (
                     <Scatter
                       data={{
@@ -1233,21 +1286,16 @@ export default function Home() {
                           {
                             label: "Efficient Frontier",
                             data: efficientFrontier,
-                            backgroundColor: "rgba(59, 130, 246, 0.5)",
-                            borderColor: "rgb(59, 130, 246)",
-                            pointRadius: 3,
+                            backgroundColor: "rgba(0, 255, 136, 0.5)",
+                            borderColor: "#00ff88",
+                            pointRadius: 2,
                           },
                           {
                             label: "Current Portfolio",
-                            data: [
-                              {
-                                x: Math.sqrt(0.04),
-                                y: 0.12,
-                              },
-                            ],
-                            backgroundColor: "rgba(239, 68, 68, 0.8)",
-                            borderColor: "rgb(239, 68, 68)",
-                            pointRadius: 8,
+                            data: [{ x: Math.sqrt(0.04), y: 0.12 }],
+                            backgroundColor: "rgba(255, 71, 71, 0.8)",
+                            borderColor: "#ff4747",
+                            pointRadius: 6,
                           },
                         ],
                       }}
@@ -1255,27 +1303,36 @@ export default function Home() {
                         maintainAspectRatio: false,
                         plugins: {
                           legend: {
-                            labels: { color: "white" },
+                            labels: {
+                              color: "#9ca3af",
+                              font: { family: "var(--font-mono)", size: 10 },
+                            },
                           },
                         },
                         scales: {
                           x: {
                             title: {
                               display: true,
-                              text: "Risk (Volatility)",
-                              color: "white",
+                              text: "RISK (VOLATILITY)",
+                              color: "#9ca3af",
                             },
-                            ticks: { color: "white" },
-                            grid: { color: "rgba(255, 255, 255, 0.1)" },
+                            ticks: {
+                              color: "#9ca3af",
+                              font: { family: "var(--font-mono)", size: 10 },
+                            },
+                            grid: { color: "#1a1a1b" },
                           },
                           y: {
                             title: {
                               display: true,
-                              text: "Return (%)",
-                              color: "white",
+                              text: "RETURN (%)",
+                              color: "#9ca3af",
                             },
-                            ticks: { color: "white" },
-                            grid: { color: "rgba(255, 255, 255, 0.1)" },
+                            ticks: {
+                              color: "#9ca3af",
+                              font: { family: "var(--font-mono)", size: 10 },
+                            },
+                            grid: { color: "#1a1a1b" },
                           },
                         },
                       }}
@@ -1285,27 +1342,30 @@ export default function Home() {
               </div>
 
               {/* Sector Exposure */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {/* Changed from mb-4 */}
+              <div className="trading-bg-darker border trading-border rounded p-4">
+                <h3 className="text-sm font-semibold text-white mb-2 uppercase">
                   Sector Exposure
                 </h3>
-                <div className="h-64">
+                <div className="h-48">
                   <Bar
                     data={mockSectorData}
                     options={{
                       maintainAspectRatio: false,
-                      plugins: {
-                        legend: { display: false },
-                      },
+                      plugins: { legend: { display: false } },
                       scales: {
                         x: {
-                          ticks: { color: "white" },
+                          ticks: {
+                            color: "#9ca3af",
+                            font: { family: "var(--font-mono)", size: 10 },
+                          },
                           grid: { display: false },
                         },
                         y: {
-                          ticks: { color: "white" },
-                          grid: { color: "rgba(255, 255, 255, 0.1)" },
+                          ticks: {
+                            color: "#9ca3af",
+                            font: { family: "var(--font-mono)", size: 10 },
+                          },
+                          grid: { color: "#1a1a1b" },
                         },
                       },
                     }}
